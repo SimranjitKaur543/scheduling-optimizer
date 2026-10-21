@@ -1,1 +1,14 @@
 @import "tailwindcss";
+
+/* Print / Save as PDF: landscape page, keep the subject colours. */
+@media print {
+  @page {
+    size: landscape;
+    margin: 10mm;
+  }
+  body {
+    background: white;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

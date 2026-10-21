@@ -2,11 +2,12 @@ const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: '▦' },
   { id: 'setup', label: 'Setup', icon: '✎' },
   { id: 'timetable', label: 'Timetable', icon: '▤' },
+  { id: 'report', label: 'Report', icon: '◔' },
 ]
 
 export default function Sidebar({ page, onNavigate, collegeName, setupErrorCount = 0 }) {
   return (
-    <aside className="bg-slate-900 text-slate-100 md:w-60 md:min-h-screen md:flex-shrink-0">
+    <aside className="bg-slate-900 text-slate-100 md:w-60 md:min-h-screen md:flex-shrink-0 print:hidden">
       <div className="px-4 py-4 md:px-5 md:py-6">
         <div className="flex items-center gap-2">
           <span className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-500 text-sm font-bold">S</span>

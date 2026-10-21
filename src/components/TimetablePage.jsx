@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import TimetableGrid from './TimetableGrid.jsx'
 import UnplacedList from './UnplacedList.jsx'
+import { downloadCsv, timetableToCsv } from '../engine/exportCsv.js'
 
 const VIEW_TYPES = [
   { id: 'section', label: 'Section', list: (data) => data.sections },
@@ -41,7 +42,7 @@ export default function TimetablePage({ data, run, generating, onGenerate }) {
             {data.settings.collegeName}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 print:hidden">
           <div className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5" role="tablist" aria-label="View by">
             {VIEW_TYPES.map((v) => (
               <button
@@ -67,6 +68,16 @@ export default function TimetablePage({ data, run, generating, onGenerate }) {
               </option>
             ))}
           </select>
+          <button
+            onClick={() => downloadCsv(`${(data.settings.collegeName || 'college').replace(/[^\w-]+/g, '-').toLowerCase()}-timetable.csv`, timetableToCsv(data, run.result.placements))}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100"
+            title="Every class for every section, for Excel or Google Sheets"
+          >
+            Download CSV
+          </button>
+          <button onClick={() => window.print()} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100" title="Print or save this view as PDF">
+            Print / PDF
+          </button>
         </div>
       </header>
 
@@ -83,7 +94,11 @@ export default function TimetablePage({ data, run, generating, onGenerate }) {
         <p className="text-sm text-slate-600">Nothing to show for this view.</p>
       )}
 
-      {run.result.unplaced.length > 0 && <UnplacedList data={data} unplaced={run.result.unplaced} />}
+      {run.result.unplaced.length > 0 && (
+        <div className="print:hidden">
+          <UnplacedList data={data} unplaced={run.result.unplaced} />
+        </div>
+      )}
     </div>
   )
 }

@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar.jsx'
 import Dashboard from './components/Dashboard.jsx'
 import SetupPage from './components/SetupPage.jsx'
 import TimetablePage from './components/TimetablePage.jsx'
+import ReportPage from './components/ReportPage.jsx'
 import { makeImpossibleCollege, makeSampleCollege } from './engine/sampleData.js'
 import { precheck } from './engine/precheck.js'
 import { solve } from './engine/solver.js'
@@ -69,7 +70,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 md:flex">
       <Sidebar page={page} onNavigate={setPage} collegeName={data.settings.collegeName} setupErrorCount={setupErrors.count} />
-      <main className="flex-1 min-w-0 px-4 py-6 md:px-8 md:py-8">
+      <main className="flex-1 min-w-0 px-4 py-6 md:px-8 md:py-8 print:p-0">
         {page === 'dashboard' && (
           <Dashboard
             data={data}
@@ -86,6 +87,7 @@ export default function App() {
         )}
         {page === 'setup' && <SetupPage data={data} errors={setupErrors} onChange={editData} onReplace={(next) => replaceData(next)} />}
         {page === 'timetable' && <TimetablePage data={data} run={run} generating={generating} onGenerate={generate} />}
+        {page === 'report' && <ReportPage data={data} run={run} generating={generating} onGenerate={generate} />}
       </main>
     </div>
   )
