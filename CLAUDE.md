@@ -1,0 +1,100 @@
+# CLAUDE.md — Scheduling Optimizer
+
+College timetable generator built for the Punjab Jobs AI Bootcamp hackathon (J-PAL South Asia). Individual project, 120-minute build. It must work for **any college**, not just one.
+
+## Goal
+
+A college administrator enters their setup (days, periods, rooms, teachers, sections, subject assignments), clicks **Generate**, and gets a weekly timetable with **zero clashes**. If a full timetable is impossible, the app explains why in plain English and suggests a fix.
+
+Judging: core functionality (no clashes), usability, design, advanced functionality (hard cases), relevance to real colleges.
+
+## Stack
+
+- React + Vite (JavaScript, not TypeScript)
+- Tailwind CSS
+- Vitest for tests
+- No backend, no database, no login. Data lives in browser `localStorage`, with JSON import/export.
+- Deployed on Vercel from GitHub.
+
+## Folder layout
+
+```
+src/engine/sampleData.js   demo college (several departments, one shared computer lab)
+src/engine/precheck.js     quick maths checks that catch impossible setups before solving
+src/engine/solver.js       greedy + backtracking + random restarts
+src/engine/validator.js    independent clash checker (never trusts the solver)
+src/engine/score.js        soft-goal scoring + analytics (teacher load, room usage)
+src/engine/*.test.js       Vitest tests
+src/components/            UI components (TimetableGrid, SetupTables, ReportPanel, ...)
+src/App.jsx
+```
+
+**The engine (`src/engine/`) contains no React or UI code.** It takes plain data in and returns plain data out, so it can be tested on its own.
+
+## Data model
+
+- **settings**: `days` (e.g. Mon–Sat), `periodsPerDay`, `breakAfterPeriod`
+- **rooms**: `id`, `name`, `type` (`"lecture"` | `"lab"`), `capacity`
+- **teachers**: `id`, `name`, `unavailable` (list of `{day, period}`), optional `maxPerDay`
+- **sections**: `id`, `name`, `department`, `size`
+- **assignments**: `id`, `sectionId`, `subject`, `teacherId`, `hoursPerWeek`, `kind` (`"lecture"` | `"lab"`), `labLength` (consecutive periods, e.g. 2)
+- **timetable output**: list of `{assignmentId, day, startPeriod, length, roomId}` plus `unplaced` (sessions that could not be placed, each with a reason)
+
+## Hard rules (must NEVER be broken)
+
+1. A teacher is in only one place at a time.
+2. A room holds only one class at a time (rooms are shared across all departments).
+3. A section attends only one class at a time.
+4. Labs go in lab rooms, use consecutive periods, and never cross the break.
+5. Room capacity ≥ section size.
+6. Teacher unavailable slots are respected.
+7. Completeness: every assignment gets all its weekly hours, or each missing session is listed in `unplaced` with a reason.
+
+## Soft goals (make a timetable "better", used for scoring)
+
+- Spread a subject across the week (avoid the same subject twice on one day).
+- Balance teacher loads and respect `maxPerDay`; avoid idle gaps.
+- Use rooms evenly.
+
+## Algorithm
+
+"Least options first" greedy + random restarts (no deep backtracking unless there is spare time):
+
+1. Expand assignments into sessions (4 hours/week → 4 one-period sessions; a lab → one session of `labLength` consecutive periods).
+2. Track `teacherBusy`, `roomBusy`, `sectionBusy` grids (day × period). A spot is valid only if teacher, room and section are free for every period it covers, the room type and capacity fit, the teacher is available, and a lab does not cross the break.
+3. Loop: pick the unplaced session with the **fewest valid spots** (the Sudoku trick), place it in its best soft-score spot, update the grids. A session with zero spots goes to `unplaced` with a reason.
+4. Restart with random tie-breaking until a ~2 second time budget is used; keep the result with the fewest unplaced sessions, then the best soft score.
+
+Impossible cases: run `precheck` first (teacher hours vs available periods, section hours vs week size, lab-periods needed vs lab capacity, section size vs largest room, lab subject with no lab room). Each failure gives a plain-English message and a suggested fix. If the solver still fails, return the best partial timetable plus the `unplaced` list with reasons.
+
+## Features beyond the MVP
+
+- Two sample buttons: "Load sample college" (3 departments, 6 sections, ~12 teachers, 7 lecture rooms, 2 shared labs) and "Load impossible scenario" (demos the diagnosis).
+- Diagnosis: pre-check failures and unplaced reasons, each with a suggested fix.
+- Analytics: teacher load chart and room-usage heatmap.
+- Substitute finder: pick a teacher and a day → list which teachers are free in each of their periods.
+- Export: CSV download and print/PDF.
+
+## Working rules for Claude
+
+- Work in **small stages**. One stage per request, then run tests, then commit.
+- Run `npx vitest run` before every commit and show the output. Do not claim something works without seeing tests pass.
+- **Never display a timetable that fails `validator.js`.**
+- The validator must be independent of the solver: it rebuilds the busy grids from the final timetable and checks every hard rule from scratch.
+- Prioritise a correct generator over visual polish. Do not add AI chat, login, a database or drag-and-drop unless the core is finished and tested.
+- Do not mark a feature as done in the README unless it is implemented and working.
+- The user is a beginner: explain changes in simple language and keep code readable.
+- Commit messages: short and clear, one working step per commit.
+
+## Commands
+
+```
+npm install
+npm run dev          # local dev server
+npx vitest run       # run tests
+npm run build        # production build (Vercel runs this)
+```
+
+## Status
+
+Nothing implemented yet. Update this section as stages are completed.
