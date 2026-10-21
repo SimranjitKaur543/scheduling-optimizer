@@ -1,9 +1,10 @@
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: '▦' },
+  { id: 'setup', label: 'Setup', icon: '✎' },
   { id: 'timetable', label: 'Timetable', icon: '▤' },
 ]
 
-export default function Sidebar({ page, onNavigate, collegeName }) {
+export default function Sidebar({ page, onNavigate, collegeName, setupErrorCount = 0 }) {
   return (
     <aside className="bg-slate-900 text-slate-100 md:w-60 md:min-h-screen md:flex-shrink-0">
       <div className="px-4 py-4 md:px-5 md:py-6">
@@ -27,6 +28,11 @@ export default function Sidebar({ page, onNavigate, collegeName }) {
           >
             <span aria-hidden="true">{item.icon}</span>
             {item.label}
+            {item.id === 'setup' && setupErrorCount > 0 && (
+              <span className="ml-auto rounded-full bg-red-500 px-1.5 text-xs font-semibold text-white" title="Fields to fix">
+                {setupErrorCount}
+              </span>
+            )}
           </button>
         ))}
       </nav>

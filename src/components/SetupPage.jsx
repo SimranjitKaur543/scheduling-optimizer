@@ -1,0 +1,307 @@
+import { useRef, useState } from 'react'
+import EditableTable from './EditableTable.jsx'
+import AvailabilityGrid from './AvailabilityGrid.jsx'
+import { ALL_DAYS, checkImportShape, makeBlankCollege, newId } from '../engine/setupValidation.js'
+import { makeSampleCollege } from '../engine/sampleData.js'
+
+const TABS = [
+  { id: 'settings', label: 'Settings' },
+  { id: 'rooms', label: 'Rooms' },
+  { id: 'teachers', label: 'Teachers' },
+  { id: 'sections', label: 'Sections' },
+  { id: 'assignments', label: 'Subjects' },
+]
+
+export default function SetupPage({ data, errors, onChange, onReplace }) {
+  const [tab, setTab] = useState('settings')
+  const [expandedTeacher, setExpandedTeacher] = useState(null)
+  const [sectionFilter, setSectionFilter] = useState('')
+  const [notice, setNotice] = useState(null) // { kind: 'error' | 'ok', text }
+  const fileInput = useRef(null)
+
+  const set = (key, value) => onChange({ ...data, [key]: value })
+  const updateRow = (key) => (row) => set(key, data[key].map((r) => (r.id === row.id ? row : r)))
+  const countErrors = (group) => Object.values(errors[group] || {}).reduce((n, e) => n + Object.keys(e).length, 0)
+  const tabErrors = { settings: Object.keys(errors.settings).length, rooms: countErrors('rooms'), teachers: countErrors('teachers'), sections: countErrors('sections'), assignments: countErrors('assignments') }
+
+  // Deleting a teacher or section also removes the subjects that depend on it (after asking).
+  function deleteWithSubjects(key, row, field) {
+    const linked = data.assignments.filter((a) => a[field] === row.id)
+    if (linked.length && !window.confirm(`${row.name || 'This row'} has ${linked.length} subject(s). Delete them too?`)) return
+    onChange({ ...data, [key]: data[key].filter((r) => r.id !== row.id), assignments: data.assignments.filter((a) => a[field] !== row.id) })
+  }
+
+  function exportJson() {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${(data.settings.collegeName || 'college').replace(/[^\w-]+/g, '-').toLowerCase()}-data.json`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  async function importJson(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    try {
+      const json = JSON.parse(await file.text())
+      const problem = checkImportShape(json)
+      if (problem) return setNotice({ kind: 'error', text: problem })
+      onReplace(json)
+      setNotice({ kind: 'ok', text: `Imported ${file.name}.` })
+    } catch {
+      setNotice({ kind: 'error', text: 'That file is not valid JSON.' })
+    }
+  }
+
+  function replaceWith(next, message) {
+    if (!window.confirm(`${message} Your current data will be replaced.`)) return
+    onReplace(next)
+    setNotice(null)
+  }
+
+  const sectionOptions = data.sections.map((s) => ({ value: s.id, label: s.name || '(unnamed)' }))
+  const teacherOptions = data.teachers.map((t) => ({ value: t.id, label: t.name || '(unnamed)' }))
+  const shownAssignments = sectionFilter ? data.assignments.filter((a) => a.sectionId === sectionFilter) : data.assignments
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-5">
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Setup</h1>
+          <p className="mt-1 text-sm text-slate-600">Enter your college's week, rooms, teachers, sections and subjects. Changes are saved in this browser automatically.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={exportJson} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100">
+            Export JSON
+          </button>
+          <button onClick={() => fileInput.current?.click()} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100">
+            Import JSON
+          </button>
+          <input ref={fileInput} type="file" accept=".json,application/json" className="hidden" onChange={importJson} />
+          <button onClick={() => replaceWith(makeSampleCollege(), 'Load the sample college?')} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100">
+            Load sample
+          </button>
+          <button onClick={() => replaceWith(makeBlankCollege(), 'Start with a blank college?')} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">
+            Start blank
+          </button>
+        </div>
+      </header>
+
+      {notice && (
+        <p className={`rounded-lg px-4 py-3 text-sm ${notice.kind === 'error' ? 'bg-red-50 text-red-800' : 'bg-emerald-50 text-emerald-800'}`}>{notice.text}</p>
+      )}
+
+      <div className="flex gap-1 overflow-x-auto border-b border-slate-200" role="tablist">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={tab === t.id}
+            onClick={() => setTab(t.id)}
+            className={`-mb-px flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${
+              tab === t.id ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            {t.label}
+            <span className="rounded-full bg-slate-100 px-1.5 text-xs text-slate-600">{t.id === 'settings' ? '' : data[t.id].length}</span>
+            {tabErrors[t.id] > 0 && <span className="rounded-full bg-red-100 px-1.5 text-xs font-semibold text-red-700">{tabErrors[t.id]} to fix</span>}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'settings' && <SettingsForm data={data} errors={errors.settings} onChange={onChange} />}
+
+      {tab === 'rooms' && (
+        <EditableTable
+          rows={data.rooms}
+          errors={errors.rooms}
+          onRowChange={updateRow('rooms')}
+          onDelete={(row) => set('rooms', data.rooms.filter((r) => r.id !== row.id))}
+          onAdd={() => set('rooms', [...data.rooms, { id: newId('R'), name: '', type: 'lecture', capacity: 60 }])}
+          addLabel="Add room"
+          emptyText="No rooms yet. Add classrooms and labs."
+          columns={[
+            { key: 'name', label: 'Room name', placeholder: 'e.g. Room 101' },
+            { key: 'type', label: 'Type', type: 'select', width: 160, options: [{ value: 'lecture', label: 'Lecture room' }, { value: 'lab', label: 'Lab' }] },
+            { key: 'capacity', label: 'Seats', type: 'number', min: 1, width: 120 },
+          ]}
+        />
+      )}
+
+      {tab === 'teachers' && (
+        <EditableTable
+          rows={data.teachers}
+          errors={errors.teachers}
+          onRowChange={updateRow('teachers')}
+          onDelete={(row) => deleteWithSubjects('teachers', row, 'teacherId')}
+          onAdd={() => set('teachers', [...data.teachers, { id: newId('T'), name: '', unavailable: [] }])}
+          addLabel="Add teacher"
+          emptyText="No teachers yet."
+          renderExpanded={(row) =>
+            expandedTeacher === row.id && (
+              <AvailabilityGrid settings={data.settings} unavailable={row.unavailable} onChange={(unavailable) => updateRow('teachers')({ ...row, unavailable })} />
+            )
+          }
+          columns={[
+            { key: 'name', label: 'Teacher name', placeholder: 'e.g. Dr. Kaur' },
+            { key: 'maxPerDay', label: 'Max periods / day', type: 'number', min: 1, placeholder: 'No limit', width: 160 },
+            {
+              key: 'unavailable',
+              label: 'Unavailable',
+              type: 'custom',
+              width: 200,
+              render: (row) => {
+                const n = row.unavailable?.length || 0
+                return (
+                  <button
+                    onClick={() => setExpandedTeacher(expandedTeacher === row.id ? null : row.id)}
+                    className="rounded-md border border-slate-300 px-2 py-1.5 text-sm hover:bg-slate-50"
+                  >
+                    {n ? `${n} period${n === 1 ? '' : 's'} off` : 'Always available'} · {expandedTeacher === row.id ? 'Close' : 'Edit'}
+                  </button>
+                )
+              },
+            },
+          ]}
+        />
+      )}
+
+      {tab === 'sections' && (
+        <EditableTable
+          rows={data.sections}
+          errors={errors.sections}
+          onRowChange={updateRow('sections')}
+          onDelete={(row) => deleteWithSubjects('sections', row, 'sectionId')}
+          onAdd={() => set('sections', [...data.sections, { id: newId('S'), name: '', department: '', size: 60 }])}
+          addLabel="Add section"
+          emptyText="No sections yet. A section is a group of students who attend classes together."
+          columns={[
+            { key: 'name', label: 'Section name', placeholder: 'e.g. CSE 3rd Sem A' },
+            { key: 'department', label: 'Department', placeholder: 'e.g. CSE', width: 180 },
+            { key: 'size', label: 'Students', type: 'number', min: 1, width: 120 },
+          ]}
+        />
+      )}
+
+      {tab === 'assignments' && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <label htmlFor="section-filter" className="text-slate-600">
+              Show subjects for
+            </label>
+            <select id="section-filter" value={sectionFilter} onChange={(e) => setSectionFilter(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5">
+              <option value="">All sections</option>
+              {sectionOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <span className="text-slate-500">
+              {shownAssignments.reduce((n, a) => n + (Number(a.hoursPerWeek) || 0), 0)} periods / week
+            </span>
+          </div>
+          <EditableTable
+            rows={shownAssignments}
+            errors={errors.assignments}
+            onRowChange={(row) => {
+              // Switching to lab gives a sensible default lab length.
+              const next = row.kind === 'lab' && !row.labLength ? { ...row, labLength: 2 } : row
+              updateRow('assignments')(next)
+            }}
+            onDelete={(row) => set('assignments', data.assignments.filter((a) => a.id !== row.id))}
+            onAdd={() =>
+              set('assignments', [
+                ...data.assignments,
+                { id: newId('A'), sectionId: sectionFilter || data.sections[0]?.id || '', subject: '', teacherId: data.teachers[0]?.id || '', hoursPerWeek: 4, kind: 'lecture' },
+              ])
+            }
+            addLabel="Add subject"
+            emptyText={data.sections.length && data.teachers.length ? 'No subjects yet.' : 'Add sections and teachers first, then their subjects here.'}
+            columns={[
+              { key: 'sectionId', label: 'Section', type: 'select', options: sectionOptions, width: 170 },
+              { key: 'subject', label: 'Subject', placeholder: 'e.g. DBMS' },
+              { key: 'teacherId', label: 'Teacher', type: 'select', options: teacherOptions, width: 190 },
+              { key: 'kind', label: 'Type', type: 'select', width: 120, options: [{ value: 'lecture', label: 'Lecture' }, { value: 'lab', label: 'Lab' }] },
+              { key: 'hoursPerWeek', label: 'Periods / week', type: 'number', min: 1, width: 120 },
+              { key: 'labLength', label: 'Lab length', type: 'number', min: 2, width: 110, placeholder: '—', disabled: (row) => row.kind !== 'lab' },
+            ]}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SettingsForm({ data, errors, onChange }) {
+  const { settings } = data
+  const setSettings = (patch) => onChange({ ...data, settings: { ...settings, ...patch } })
+
+  // Unavailability is stored by day index, so remap it when the list of days changes.
+  function toggleDay(name) {
+    const days = ALL_DAYS.filter((d) => (d === name ? !settings.days.includes(d) : settings.days.includes(d)))
+    const teachers = data.teachers.map((t) => ({
+      ...t,
+      unavailable: (t.unavailable || []).map((u) => ({ ...u, day: days.indexOf(settings.days[u.day]) })).filter((u) => u.day >= 0),
+    }))
+    onChange({ ...data, settings: { ...settings, days }, teachers })
+  }
+
+  const periods = Number(settings.periodsPerDay) || 0
+  const input = (error) => `mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm ${error ? 'border-red-400' : 'border-slate-300'}`
+
+  return (
+    <div className="grid gap-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2">
+      <label className="block text-sm font-medium">
+        College name
+        <input className={input()} value={settings.collegeName || ''} onChange={(e) => setSettings({ collegeName: e.target.value })} />
+      </label>
+      <div className="text-sm font-medium">
+        Working days
+        <div className="mt-1 flex flex-wrap gap-1.5">
+          {ALL_DAYS.map((d) => {
+            const on = settings.days.includes(d)
+            return (
+              <button
+                key={d}
+                onClick={() => toggleDay(d)}
+                aria-pressed={on}
+                className={`rounded-md border px-3 py-1.5 text-sm ${on ? 'border-indigo-500 bg-indigo-50 text-indigo-800' : 'border-slate-300 text-slate-500 hover:bg-slate-50'}`}
+              >
+                {d}
+              </button>
+            )
+          })}
+        </div>
+        {errors.days && <p className="mt-1 text-xs font-normal text-red-600">{errors.days}</p>}
+      </div>
+      <label className="block text-sm font-medium">
+        Periods per day
+        <input
+          type="number"
+          min={1}
+          max={12}
+          className={input(errors.periodsPerDay)}
+          value={settings.periodsPerDay}
+          onChange={(e) => setSettings({ periodsPerDay: e.target.value === '' ? '' : Number(e.target.value) })}
+        />
+        {errors.periodsPerDay && <span className="mt-1 block text-xs font-normal text-red-600">{errors.periodsPerDay}</span>}
+      </label>
+      <label className="block text-sm font-medium">
+        Lunch break
+        <select className={input()} value={settings.breakAfterPeriod || 0} onChange={(e) => setSettings({ breakAfterPeriod: Number(e.target.value) })}>
+          <option value={0}>No break</option>
+          {Array.from({ length: Math.max(0, periods - 1) }, (_, i) => (
+            <option key={i + 1} value={i + 1}>
+              After period {i + 1}
+            </option>
+          ))}
+        </select>
+        <span className="mt-1 block text-xs font-normal text-slate-500">Labs are never split across the break.</span>
+      </label>
+    </div>
+  )
+}

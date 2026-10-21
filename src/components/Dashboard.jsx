@@ -1,6 +1,6 @@
 import ResultSummary from './ResultSummary.jsx'
 
-export default function Dashboard({ data, check, run, generating, onLoadSample, onLoadImpossible, onGenerate, onViewTimetable }) {
+export default function Dashboard({ data, check, setupErrorCount, run, generating, onLoadSample, onLoadImpossible, onGenerate, onViewTimetable, onOpenSetup }) {
   const totalPeriods = data.assignments.reduce((sum, a) => sum + (a.hoursPerWeek || 0), 0)
   const labRooms = data.rooms.filter((r) => r.type === 'lab').length
   const errors = check.issues.filter((i) => i.severity === 'error')
@@ -41,8 +41,8 @@ export default function Dashboard({ data, check, run, generating, onLoadSample, 
           </div>
           <button
             onClick={onGenerate}
-            disabled={generating}
-            className={`shrink-0 rounded-lg px-5 py-2.5 text-sm font-semibold text-white shadow-sm disabled:opacity-60 ${
+            disabled={generating || setupErrorCount > 0}
+            className={`shrink-0 rounded-lg px-5 py-2.5 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60 ${
               check.ok ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-amber-600 hover:bg-amber-700'
             }`}
           >
@@ -50,7 +50,18 @@ export default function Dashboard({ data, check, run, generating, onLoadSample, 
           </button>
         </div>
 
-        {check.ok && !warnings.length && (
+        {setupErrorCount > 0 && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+            <p>
+              ✕ {setupErrorCount === 1 ? '1 field in Setup needs' : `${setupErrorCount} fields in Setup need`} fixing before a timetable can be generated.
+            </p>
+            <button onClick={onOpenSetup} className="rounded-md bg-white px-3 py-1.5 font-medium text-red-800 shadow-sm hover:bg-red-100">
+              Go to Setup →
+            </button>
+          </div>
+        )}
+
+        {check.ok && !warnings.length && setupErrorCount === 0 && (
           <p className="mt-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">✓ All checks passed. This setup looks schedulable.</p>
         )}
         {(errors.length > 0 || warnings.length > 0) && (
