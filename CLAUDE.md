@@ -97,4 +97,8 @@ npm run build        # production build (Vercel runs this)
 
 ## Status
 
-Nothing implemented yet. Update this section as stages are completed.
+- Repo: https://github.com/SimranjitKaur543/scheduling-optimizer
+- Live: https://scheduling-optimizer.vercel.app/ (Vercel redeploys on every push to `main`)
+- Stage 1 done: Vite + React + Tailwind + Vitest setup (placeholder page).
+- Stage 2 done: `model.js` helpers, `sampleData.js` (sample + impossible college), `validator.js`, `precheck.js`, tests in `validator.test.js` and `precheck.test.js` (fixtures in `testFixtures.js`).
+- Next: Stage 3, `solver.js` (least options first + restarts) and its tests. No UI beyond the placeholder yet.
