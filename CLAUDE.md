@@ -101,4 +101,5 @@ npm run build        # production build (Vercel runs this)
 - Live: https://scheduling-optimizer.vercel.app/ (Vercel redeploys on every push to `main`)
 - Stage 1 done: Vite + React + Tailwind + Vitest setup (placeholder page).
 - Stage 2 done: `model.js` helpers, `sampleData.js` (sample + impossible college), `validator.js`, `precheck.js`, tests in `validator.test.js` and `precheck.test.js` (fixtures in `testFixtures.js`).
-- Next: Stage 3, `solver.js` (least options first + restarts) and its tests. No UI beyond the placeholder yet.
+- Stage 3 done: `solver.js` (least options first + seeded random restarts, busy grids as flat `Uint8Array`s), `score.js` (soft-goal penalties), `solver.test.js` incl. a 50-random-college stress test (`randomCollege` in `testFixtures.js`). 26 tests pass. Sample college: ~130 attempts in 2 s, all placed, penalty 54 → 33.
+- Next: Stage 4, UI (Dashboard with sample buttons + Generate, timetable grid with Section/Teacher/Room filter, verified badge). No UI beyond the placeholder yet.

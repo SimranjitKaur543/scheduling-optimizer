@@ -1,4 +1,5 @@
 // A tiny college used by the tests: 2 days × 4 periods, break after period 2.
+// Also a random college generator for the stress test.
 
 export function tinyCollege() {
   return {
@@ -35,4 +36,51 @@ export function tinyValidResult() {
     ],
     unplaced: [],
   }
+}
+
+/**
+ * A random college for the stress test. Some will be easy, some tight, some impossible.
+ * `rng` is a function returning numbers in [0, 1).
+ */
+export function randomCollege(rng) {
+  const int = (min, max) => min + Math.floor(rng() * (max - min + 1))
+  const pick = (list) => list[Math.floor(rng() * list.length)]
+  const times = (n, make) => Array.from({ length: n }, (_, i) => make(i))
+
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].slice(0, int(4, 6))
+  const periodsPerDay = int(5, 8)
+  const settings = { days, periodsPerDay, breakAfterPeriod: int(2, periodsPerDay - 2) }
+
+  const rooms = [
+    ...times(int(2, 6), (i) => ({ id: `R${i}`, name: `Room ${i}`, type: 'lecture', capacity: int(30, 80) })),
+    ...times(int(0, 2), (i) => ({ id: `LAB${i}`, name: `Lab ${i}`, type: 'lab', capacity: int(30, 80) })),
+  ]
+
+  const teachers = times(int(3, 10), (i) => ({
+    id: `T${i}`,
+    name: `Teacher ${i}`,
+    unavailable: times(int(0, 6), () => ({ day: int(0, days.length - 1), period: int(0, periodsPerDay - 1) })),
+    ...(rng() < 0.3 ? { maxPerDay: int(2, 5) } : {}),
+  }))
+
+  const sections = times(int(1, 6), (i) => ({ id: `S${i}`, name: `Section ${i}`, department: pick(['A', 'B', 'C']), size: int(25, 75) }))
+
+  const assignments = []
+  for (const s of sections) {
+    const subjectCount = int(2, 6)
+    for (let k = 0; k < subjectCount; k++) {
+      const isLab = rng() < 0.25
+      const labLength = int(2, 3)
+      assignments.push({
+        id: `A${assignments.length}`,
+        sectionId: s.id,
+        subject: `Subject ${k}`,
+        teacherId: pick(teachers).id,
+        hoursPerWeek: isLab ? labLength * int(1, 2) : int(1, 5),
+        kind: isLab ? 'lab' : 'lecture',
+        ...(isLab ? { labLength } : {}),
+      })
+    }
+  }
+  return { settings, rooms, teachers, sections, assignments }
 }
