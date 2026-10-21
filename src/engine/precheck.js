@@ -22,7 +22,7 @@ export function precheck(data) {
     return { ok: false, issues }
   }
   if (!assignments.length) {
-    error('There are no subjects to schedule.', 'Add at least one assignment (section + subject + teacher + hours).')
+    error('There are no subjects to schedule.', 'In Setup, add rooms, teachers and sections, then add subjects (section + subject + teacher + periods per week).')
   }
 
   // --- Each assignment makes sense ---
