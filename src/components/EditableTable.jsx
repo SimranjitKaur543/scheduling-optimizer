@@ -1,4 +1,4 @@
-import { Fragment } from 'react'
+import { Fragment, useState } from 'react'
 
 /**
  * One table component reused for rooms, teachers, sections and assignments.
@@ -7,8 +7,18 @@ import { Fragment } from 'react'
  *             placeholder, min, max, width, disabled(row), render(row, onRowChange) }]
  * errors:  { rowId: { key: message } } shown under the matching cell
  * renderExpanded(row): optional extra full-width content under a row (e.g. availability grid)
+ * deleteWarning(row): optional; return a message to ask "are you sure?" before deleting that row
  */
-export default function EditableTable({ columns, rows, errors = {}, onRowChange, onDelete, onAdd, addLabel = 'Add row', emptyText, renderExpanded }) {
+export default function EditableTable({ columns, rows, errors = {}, onRowChange, onDelete, onAdd, addLabel = 'Add row', emptyText, renderExpanded, deleteWarning }) {
+  // Asked inside the table, not with a browser pop-up (pop-ups can be blocked, which silently cancels them).
+  const [pendingDelete, setPendingDelete] = useState(null) // { id, message }
+
+  function requestDelete(row) {
+    const message = deleteWarning?.(row)
+    if (message) setPendingDelete({ id: row.id, message })
+    else onDelete(row)
+  }
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
@@ -47,7 +57,7 @@ export default function EditableTable({ columns, rows, errors = {}, onRowChange,
                     ))}
                     <td className="px-3 py-2 text-right">
                       <button
-                        onClick={() => onDelete(row)}
+                        onClick={() => requestDelete(row)}
                         className="rounded-md px-2 py-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
                         aria-label="Delete row"
                         title="Delete row"
@@ -56,6 +66,27 @@ export default function EditableTable({ columns, rows, errors = {}, onRowChange,
                       </button>
                     </td>
                   </tr>
+                  {pendingDelete?.id === row.id && (
+                    <tr>
+                      <td colSpan={columns.length + 1} className="bg-red-50 px-3 py-3" role="alert">
+                        <div className="flex flex-wrap items-center gap-3 text-sm text-red-900">
+                          <p className="font-medium">{pendingDelete.message}</p>
+                          <button
+                            onClick={() => {
+                              setPendingDelete(null)
+                              onDelete(row)
+                            }}
+                            className="rounded-md bg-red-600 px-3 py-1.5 font-semibold text-white hover:bg-red-700"
+                          >
+                            Yes, delete
+                          </button>
+                          <button onClick={() => setPendingDelete(null)} className="rounded-md bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-100">
+                            Cancel
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                   {expanded && (
                     <tr>
                       <td colSpan={columns.length + 1} className="bg-slate-50 px-3 py-3">

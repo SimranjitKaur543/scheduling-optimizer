@@ -13,6 +13,8 @@ const STATUS = {
 export default function WorkspacesPage({ store, onOpen, onCreate, onImport, onRename, onDuplicate, onDelete }) {
   const [editingId, setEditingId] = useState(null)
   const [draftName, setDraftName] = useState('')
+  // Delete asks inside the card (browser pop-ups can be blocked, which silently cancels them).
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState(null)
   const [notice, setNotice] = useState(null) // { kind: 'error' | 'ok', text }
   const fileInput = useRef(null)
   const sorted = [...store.workspaces].sort((a, b) => b.updatedAt - a.updatedAt)
@@ -112,15 +114,30 @@ export default function WorkspacesPage({ store, onOpen, onCreate, onImport, onRe
                   <SmallButton onClick={() => startRename(w)}>Rename</SmallButton>
                   <SmallButton onClick={() => onDuplicate(w.id)}>Duplicate</SmallButton>
                   <SmallButton onClick={() => downloadJson(`${fileSlug(w.name)}.json`, w.data)}>Export</SmallButton>
-                  <SmallButton
-                    danger
-                    onClick={() => {
-                      if (window.confirm(`Delete "${w.name}"? This cannot be undone. Use Export first if you may need it.`)) onDelete(w.id)
-                    }}
-                  >
+                  <SmallButton danger onClick={() => setConfirmingDeleteId(w.id)}>
                     Delete
                   </SmallButton>
                 </div>
+                {confirmingDeleteId === w.id && (
+                  <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900" role="alert">
+                    <p className="font-medium">Delete "{w.name}"?</p>
+                    <p className="mt-0.5 text-xs">This cannot be undone. Use Export first if you may need it.</p>
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        onClick={() => {
+                          setConfirmingDeleteId(null)
+                          onDelete(w.id)
+                        }}
+                        className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700"
+                      >
+                        Yes, delete
+                      </button>
+                      <button onClick={() => setConfirmingDeleteId(null)} className="rounded-md bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </li>
             )
           })}

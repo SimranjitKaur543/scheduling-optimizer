@@ -22,11 +22,14 @@ export default function SetupPage({ data, errors, onChange }) {
   const countErrors = (group) => Object.values(errors[group] || {}).reduce((n, e) => n + Object.keys(e).length, 0)
   const tabErrors = { settings: Object.keys(errors.settings).length, rooms: countErrors('rooms'), teachers: countErrors('teachers'), sections: countErrors('sections'), assignments: countErrors('assignments') }
 
-  // Deleting a teacher or section also removes the subjects that depend on it (after asking).
+  // Deleting a teacher or section also removes the subjects that depend on it.
+  // The table asks first (inside the page) when there are linked subjects.
   function deleteWithSubjects(key, row, field) {
-    const linked = data.assignments.filter((a) => a[field] === row.id)
-    if (linked.length && !window.confirm(`${row.name || 'This row'} has ${linked.length} subject(s). Delete them too?`)) return
     onChange({ ...data, [key]: data[key].filter((r) => r.id !== row.id), assignments: data.assignments.filter((a) => a[field] !== row.id) })
+  }
+  function linkedSubjectsWarning(row, field) {
+    const linked = data.assignments.filter((a) => a[field] === row.id).length
+    return linked ? `${row.name || 'This row'} has ${linked} subject${linked === 1 ? '' : 's'}. Deleting it also deletes ${linked === 1 ? 'that subject' : 'those subjects'}.` : null
   }
 
   const sectionOptions = data.sections.map((s) => ({ value: s.id, label: s.name || '(unnamed)' }))
@@ -94,6 +97,7 @@ export default function SetupPage({ data, errors, onChange }) {
           errors={errors.teachers}
           onRowChange={updateRow('teachers')}
           onDelete={(row) => deleteWithSubjects('teachers', row, 'teacherId')}
+          deleteWarning={(row) => linkedSubjectsWarning(row, 'teacherId')}
           onAdd={() => set('teachers', [...data.teachers, { id: newId('T'), name: '', unavailable: [] }])}
           addLabel="Add teacher"
           emptyText="No teachers yet."
@@ -132,6 +136,7 @@ export default function SetupPage({ data, errors, onChange }) {
           errors={errors.sections}
           onRowChange={updateRow('sections')}
           onDelete={(row) => deleteWithSubjects('sections', row, 'sectionId')}
+          deleteWarning={(row) => linkedSubjectsWarning(row, 'sectionId')}
           onAdd={() => set('sections', [...data.sections, { id: newId('S'), name: '', department: '', size: 60 }])}
           addLabel="Add section"
           emptyText="No sections yet. A section is a group of students who attend classes together."
