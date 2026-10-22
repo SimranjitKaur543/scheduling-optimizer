@@ -30,7 +30,20 @@ export function timetableToCsv(data, placements) {
 
 /** Ask the browser to save the CSV. The BOM makes Excel read names with special characters correctly. */
 export function downloadCsv(filename, csv) {
-  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
+  downloadBlob(filename, new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }))
+}
+
+/** Ask the browser to save college data as a JSON file (for backup or moving to another computer). */
+export function downloadJson(filename, data) {
+  downloadBlob(filename, new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }))
+}
+
+/** A safe file name from any text, e.g. "GNDEC – Odd Sem" → "gndec-odd-sem". */
+export function fileSlug(text) {
+  return (text || 'college').replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'college'
+}
+
+function downloadBlob(filename, blob) {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url

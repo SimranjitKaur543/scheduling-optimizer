@@ -1,8 +1,8 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import EditableTable from './EditableTable.jsx'
 import AvailabilityGrid from './AvailabilityGrid.jsx'
-import { ALL_DAYS, checkImportShape, makeBlankCollege, newId } from '../engine/setupValidation.js'
-import { makeSampleCollege } from '../engine/sampleData.js'
+import { ALL_DAYS, newId } from '../engine/setupValidation.js'
+import { downloadJson, fileSlug } from '../engine/exportCsv.js'
 
 const TABS = [
   { id: 'settings', label: 'Settings' },
@@ -12,12 +12,10 @@ const TABS = [
   { id: 'assignments', label: 'Subjects' },
 ]
 
-export default function SetupPage({ data, errors, onChange, onReplace }) {
+export default function SetupPage({ data, errors, onChange }) {
   const [tab, setTab] = useState('settings')
   const [expandedTeacher, setExpandedTeacher] = useState(null)
   const [sectionFilter, setSectionFilter] = useState('')
-  const [notice, setNotice] = useState(null) // { kind: 'error' | 'ok', text }
-  const fileInput = useRef(null)
 
   const set = (key, value) => onChange({ ...data, [key]: value })
   const updateRow = (key) => (row) => set(key, data[key].map((r) => (r.id === row.id ? row : r)))
@@ -31,37 +29,6 @@ export default function SetupPage({ data, errors, onChange, onReplace }) {
     onChange({ ...data, [key]: data[key].filter((r) => r.id !== row.id), assignments: data.assignments.filter((a) => a[field] !== row.id) })
   }
 
-  function exportJson() {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${(data.settings.collegeName || 'college').replace(/[^\w-]+/g, '-').toLowerCase()}-data.json`
-    link.click()
-    URL.revokeObjectURL(url)
-  }
-
-  async function importJson(event) {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) return
-    try {
-      const json = JSON.parse(await file.text())
-      const problem = checkImportShape(json)
-      if (problem) return setNotice({ kind: 'error', text: problem })
-      onReplace(json)
-      setNotice({ kind: 'ok', text: `Imported ${file.name}.` })
-    } catch {
-      setNotice({ kind: 'error', text: 'That file is not valid JSON.' })
-    }
-  }
-
-  function replaceWith(next, message) {
-    if (!window.confirm(`${message} Your current data will be replaced.`)) return
-    onReplace(next)
-    setNotice(null)
-  }
-
   const sectionOptions = data.sections.map((s) => ({ value: s.id, label: s.name || '(unnamed)' }))
   const teacherOptions = data.teachers.map((t) => ({ value: t.id, label: t.name || '(unnamed)' }))
   const shownAssignments = sectionFilter ? data.assignments.filter((a) => a.sectionId === sectionFilter) : data.assignments
@@ -71,28 +38,18 @@ export default function SetupPage({ data, errors, onChange, onReplace }) {
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Setup</h1>
-          <p className="mt-1 text-sm text-slate-600">Enter your college's week, rooms, teachers, sections and subjects. Changes are saved in this browser automatically.</p>
+          <p className="mt-1 text-sm text-slate-600">
+            Enter this organisation's week, rooms, teachers, sections and subjects. Changes are saved automatically. To set up a different organisation, create
+            a new timetable in My timetables.
+          </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={exportJson} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100">
-            Export JSON
-          </button>
-          <button onClick={() => fileInput.current?.click()} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100">
-            Import JSON
-          </button>
-          <input ref={fileInput} type="file" accept=".json,application/json" className="hidden" onChange={importJson} />
-          <button onClick={() => replaceWith(makeSampleCollege(), 'Load the sample college?')} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100">
-            Load sample
-          </button>
-          <button onClick={() => replaceWith(makeBlankCollege(), 'Start with a blank college?')} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">
-            Start blank
-          </button>
-        </div>
+        <button
+          onClick={() => downloadJson(`${fileSlug(data.settings.collegeName)}-data.json`, data)}
+          className="shrink-0 self-start rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100 lg:self-auto"
+        >
+          Export JSON
+        </button>
       </header>
-
-      {notice && (
-        <p className={`rounded-lg px-4 py-3 text-sm ${notice.kind === 'error' ? 'bg-red-50 text-red-800' : 'bg-emerald-50 text-emerald-800'}`}>{notice.text}</p>
-      )}
 
       <div className="flex gap-1 overflow-x-auto border-b border-slate-200" role="tablist">
         {TABS.map((t) => (

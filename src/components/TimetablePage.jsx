@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import TimetableGrid from './TimetableGrid.jsx'
 import UnplacedList from './UnplacedList.jsx'
-import { downloadCsv, timetableToCsv } from '../engine/exportCsv.js'
+import { downloadCsv, fileSlug, timetableToCsv } from '../engine/exportCsv.js'
 
 const VIEW_TYPES = [
   { id: 'section', label: 'Section', list: (data) => data.sections },
@@ -69,7 +69,7 @@ export default function TimetablePage({ data, run, generating, onGenerate }) {
             ))}
           </select>
           <button
-            onClick={() => downloadCsv(`${(data.settings.collegeName || 'college').replace(/[^\w-]+/g, '-').toLowerCase()}-timetable.csv`, timetableToCsv(data, run.result.placements))}
+            onClick={() => downloadCsv(`${fileSlug(data.settings.collegeName)}-timetable.csv`, timetableToCsv(data, run.result.placements))}
             className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100"
             title="Every class for every section, for Excel or Google Sheets"
           >

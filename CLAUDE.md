@@ -21,7 +21,8 @@ Judging: core functionality (no clashes), usability, design, advanced functional
 ```
 src/engine/sampleData.js   demo college (several departments, one shared computer lab)
 src/engine/precheck.js     quick maths checks that catch impossible setups before solving
-src/engine/solver.js       greedy + backtracking + random restarts
+src/engine/solver.js       least-options-first greedy + random restarts
+src/engine/workspaces.js   My timetables: many saved timetables per browser
 src/engine/validator.js    independent clash checker (never trusts the solver)
 src/engine/score.js        soft-goal scoring + analytics (teacher load, room usage)
 src/engine/*.test.js       Vitest tests
@@ -69,7 +70,8 @@ Impossible cases: run `precheck` first (teacher hours vs available periods, sect
 
 ## Features beyond the MVP
 
-- Two sample buttons: "Load sample college" (3 departments, 6 sections, ~12 teachers, 7 lecture rooms, 2 shared labs) and "Load impossible scenario" (demos the diagnosis).
+- My timetables: many timetables (any organisation, semester or draft) per browser, each with its own data and saved generated result; create blank / from sample / impossible demo / from JSON, open, rename, duplicate, export, delete.
+- Demo timetables: "Sample college" (3 departments, 6 sections, ~12 teachers, 7 lecture rooms, 2 shared labs) and "Impossible scenario" (demos the diagnosis), created from My timetables.
 - Diagnosis: pre-check failures and unplaced reasons, each with a suggested fix.
 - Analytics: teacher load chart and room-usage heatmap.
 - Substitute finder: pick a teacher and a day → list which teachers are free in each of their periods.
@@ -107,4 +109,5 @@ npm run build        # production build (Vercel runs this)
 - Stage 6 done: `ReportPage` with summary tiles (busiest/lightest teacher, room time in use, under-used rooms), `TeacherLoadChart` (single-hue bars, average line, hover tooltip, table view), `RoomHeatmap` (rooms × days, one-hue steps + legend), `SubstituteFinder` (absent teacher + day → free teachers per class, same-subject first). Engine: `teacherLoad`, `roomUsage`, `findSubstitutes` in `score.js`; `exportCsv.js` (CSV with BOM for Excel). Timetable page has "Download CSV" and "Print / PDF" (print hides sidebar and controls, landscape). Tests in `report.test.js`; 37 tests pass. Checked in browser on desktop and 375px.
 - Demo insight: in the sample, Room 301 (50 seats) is never used because every section has 55+ students; the heatmap shows it.
 - Stage 7 done: `README.md` (problem, features, 1-minute walkthrough, algorithm, rules, local setup, tests, JSON format, structure, known limits). Polish: favicon + meta description; blank college shows a "Get started in 4 steps" guide instead of Generate. Live site checked after Stage 6 push: 130/130 placed, verified, Report works.
-- Known limits (also in README): one teacher per class; no combined sections or lab batches; greedy + restarts, not exact; no drag-and-drop editing; data stored per browser.
+- Stage 8 done: My timetables. `engine/workspaces.js` (+ `workspaces.test.js`): store `{ activeId, workspaces: [{ id, name, data, result, edited, createdAt, updatedAt }] }` in localStorage key `scheduling-optimizer:workspaces:v2`; the old `scheduling-optimizer:data:v1` save is upgraded automatically. The generated `result` is saved per timetable and re-checked with `validateTimetable` whenever it is shown. `WorkspacesPage` lists cards with status (not generated / ready / partial); the sidebar shows the open timetable with a Switch button. Sample/impossible/blank/import now create a new timetable instead of overwriting (removed from Dashboard and Setup; Setup keeps Export JSON). 44 tests pass. Checked in browser: upgrade from v1, two timetables generated, switch, reload keeps results, rename/duplicate/delete, 375px.
+- Known limits (also in README): one teacher per class; no combined sections or lab batches; greedy + restarts, not exact; no drag-and-drop editing; no accounts: timetables stored per browser (accounts with cloud storage, e.g. Supabase, are a possible later phase; would need this file's "no login, no database" rule changed on purpose).

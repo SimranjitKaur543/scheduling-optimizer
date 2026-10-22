@@ -1,6 +1,6 @@
 import ResultSummary from './ResultSummary.jsx'
 
-export default function Dashboard({ data, check, setupErrorCount, run, generating, onLoadSample, onLoadImpossible, onGenerate, onViewTimetable, onOpenSetup }) {
+export default function Dashboard({ workspaceName, data, check, setupErrorCount, run, generating, onGenerate, onViewTimetable, onOpenSetup, onOpenWorkspaces, onNewSample }) {
   const totalPeriods = data.assignments.reduce((sum, a) => sum + (a.hoursPerWeek || 0), 0)
   const labRooms = data.rooms.filter((r) => r.type === 'lab').length
   const isEmpty = data.assignments.length === 0
@@ -10,20 +10,16 @@ export default function Dashboard({ data, check, setupErrorCount, run, generatin
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-wide text-indigo-700">Dashboard</p>
+          <h1 className="truncate text-2xl font-bold tracking-tight">{workspaceName}</h1>
           <p className="mt-1 text-sm text-slate-600">
-            {data.settings.collegeName || 'Your college'} · {data.settings.days.length} days × {data.settings.periodsPerDay} periods
+            {data.settings.collegeName || 'No organisation name'} · {data.settings.days.length} days × {data.settings.periodsPerDay} periods
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={onLoadSample} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100">
-            Load sample college
-          </button>
-          <button onClick={onLoadImpossible} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100">
-            Load impossible scenario
-          </button>
-        </div>
+        <button onClick={onOpenWorkspaces} className="shrink-0 self-start rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100 sm:self-auto">
+          ⇄ Switch or create timetable
+        </button>
       </header>
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
@@ -55,8 +51,8 @@ export default function Dashboard({ data, check, setupErrorCount, run, generatin
             <button onClick={onOpenSetup} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
               Go to Setup →
             </button>
-            <button onClick={onLoadSample} className="rounded-lg border border-indigo-300 bg-white px-4 py-2 text-sm font-medium text-indigo-900 hover:bg-indigo-100">
-              Or try the sample college
+            <button onClick={onNewSample} className="rounded-lg border border-indigo-300 bg-white px-4 py-2 text-sm font-medium text-indigo-900 hover:bg-indigo-100">
+              Or open a sample college
             </button>
           </div>
         </section>

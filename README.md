@@ -16,6 +16,7 @@ Most colleges still build timetables by hand at the start of every semester. Eac
 
 ## What it does
 
+0. **My timetables:** keep as many timetables as you need, for any number of colleges, departments, semesters or drafts. Each one has its own setup data, and its generated timetable is saved with it. Create a new one blank, from the sample or from a JSON file; rename, duplicate (for example, copy last semester and edit it), export or delete any of them.
 1. **Enter your college:** working days, periods per day, lunch break, rooms (lecture or lab, with seats), teachers (with times they are unavailable and an optional daily limit), sections (with student count) and subjects (section + subject + teacher + periods per week, lecture or lab).
 2. **Pre-check:** before generating, quick maths checks catch setups that can never work and explain why in plain English, each with a suggested fix. For example: *"Prof. Ritu Bansal must teach 18 periods but is only available for 14. Fix: reduce their load by 4 periods…"*
 3. **Generate:** builds a full weekly timetable in about 1.5 seconds, trying 100+ versions and keeping the best one.
@@ -33,6 +34,7 @@ Most colleges still build timetables by hand at the start of every semester. Eac
 | Core | Room capacity, teacher unavailability, teacher max periods per day |
 | Hard cases | Pre-check with plain-English reasons and fixes; partial timetable with a list of every class that could not be placed and *why* |
 | Quality | Spreads each subject across the week, balances teacher days, avoids idle gaps; shows how much better the result is than the first attempt |
+| Multiple organisations | "My timetables" list: many timetables side by side, each with its own data and saved result; create, open, rename, duplicate, export, delete |
 | Usability | Sample college and an "impossible scenario" with one click; editable tables with inline validation; autosave in the browser |
 | Report | Teacher load chart, room usage heatmap, under-used room count, substitute finder |
 | Export | CSV, print / PDF, JSON import / export |
@@ -43,8 +45,8 @@ Most colleges still build timetables by hand at the start of every semester. Eac
 2. Click **Generate timetable**. All 130 periods are placed and the badge shows **Verified: 0 clashes**.
 3. Click **View timetable**, then switch to **Room → Computer Lab 1** to see CSE, ECE and ME sharing one lab without a single overlap.
 4. Open **Report** to see teacher loads, the room heatmap (Room 301 is never used: at 50 seats it is too small for every section) and the substitute finder.
-5. Back on the **Dashboard**, click **Load impossible scenario**: a teacher on leave, a 90-student section, a closed lab and extra project labs. The pre-check lists each problem with a fix, and **Generate anyway** still produces a clash-free partial timetable and explains every class it could not place.
-6. Go to **Setup** to change anything, or click **Start blank** to enter your own college.
+5. Open **My timetables** and click **+ Impossible scenario**: a teacher on leave, a 90-student section, a closed lab and extra project labs. The pre-check lists each problem with a fix, and **Generate anyway** still produces a clash-free partial timetable and explains every class it could not place.
+6. Go back to **My timetables**: both timetables are listed with their status, and the sample's timetable is still there (it is saved, even after a page reload). Click **+ New blank timetable** to set up your own organisation in **Setup**.
 
 ## How the scheduler works
 
@@ -101,7 +103,7 @@ npm run preview    # serve the production build
 
 ## Tests
 
-37 automated tests (`npm test`), all passing:
+44 automated tests (`npm test`), all passing:
 
 | File | What it proves |
 |---|---|
@@ -110,6 +112,7 @@ npm run preview    # serve the production build
 | `solver.test.js` | The sample college is fully scheduled with no clashes; unavailable teachers are respected; one lab shared by three sections never overlaps; labs never cross the break; the impossible scenario gives a clash-free partial result with reasons; restarts never make things worse; **stress test: 50 randomly generated colleges never produce a single clash** |
 | `setupValidation.test.js` | Setup form checks: empty or duplicate names, bad numbers, lab hours that do not divide evenly, subjects pointing at deleted teachers or sections, bad import files |
 | `report.test.js` | Teacher load, room usage, substitute finder (never suggests a busy or unavailable teacher) and CSV format |
+| `workspaces.test.js` | My timetables: saved timetables and results read back correctly; data from the old one-college version is upgraded; broken storage never crashes the app; duplicates are fully independent; deleting the last timetable leaves a blank one |
 
 ## Data format (JSON import / export)
 
@@ -140,9 +143,10 @@ src/
     validator.js          independent rule-by-rule clash checker
     score.js              quality penalty, teacher load, room usage, substitute finder
     setupValidation.js    form field checks, blank college, import shape check
-    exportCsv.js          CSV export
+    exportCsv.js          CSV and JSON downloads
+    workspaces.js         My timetables: many saved timetables, upgrade from old saves
     *.test.js             tests
-  components/             React UI: Dashboard, Setup, Timetable, Report and their parts
+  components/             React UI: My timetables, Dashboard, Setup, Timetable, Report and their parts
   App.jsx                 page state, autosave, Generate
 CLAUDE.md                 project rules and status for Claude Code
 ```
@@ -155,7 +159,7 @@ CLAUDE.md                 project rules and status for Claude Code
 - Lab batches (half a section in the lab while the other half has a lecture) are not modelled yet.
 - The solver is greedy with restarts, not an exact solver. On very tight setups it can leave a few sessions unplaced that a perfect solver might fit; it always says so, and the timetable it shows is always clash-free.
 - No manual drag-and-drop editing of the generated timetable.
-- Data is stored per browser. Use Export JSON to move it or share it.
+- No user accounts yet: timetables are stored in each person's own browser. Anyone can use the site, and each visitor's timetables stay private to their browser, but they do not follow you to another device. Use Export / Import JSON to move them. Accounts with cloud storage (for example, Supabase) are a planned next step.
 
 ## Built with Claude Code
 

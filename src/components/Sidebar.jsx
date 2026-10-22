@@ -1,11 +1,12 @@
 const NAV = [
+  { id: 'workspaces', label: 'My timetables', icon: '☰' },
   { id: 'dashboard', label: 'Dashboard', icon: '▦' },
   { id: 'setup', label: 'Setup', icon: '✎' },
   { id: 'timetable', label: 'Timetable', icon: '▤' },
   { id: 'report', label: 'Report', icon: '◔' },
 ]
 
-export default function Sidebar({ page, onNavigate, collegeName, setupErrorCount = 0 }) {
+export default function Sidebar({ page, onNavigate, workspaceName, collegeName, setupErrorCount = 0 }) {
   return (
     <aside className="bg-slate-900 text-slate-100 md:w-60 md:min-h-screen md:flex-shrink-0 print:hidden">
       <div className="px-4 py-4 md:px-5 md:py-6">
@@ -16,7 +17,16 @@ export default function Sidebar({ page, onNavigate, collegeName, setupErrorCount
             <p className="text-xs text-slate-400 leading-tight">Clash-free timetables</p>
           </div>
         </div>
-        {collegeName && <p className="mt-4 hidden text-xs text-slate-400 md:block">{collegeName}</p>}
+        <button
+          onClick={() => onNavigate('workspaces')}
+          className="mt-4 hidden w-full rounded-lg border border-slate-700 px-3 py-2 text-left hover:border-slate-500 hover:bg-slate-800 md:block"
+          title="Switch timetable"
+        >
+          <span className="block text-[11px] uppercase tracking-wide text-slate-400">Open timetable</span>
+          <span className="block truncate text-sm font-medium text-white">{workspaceName}</span>
+          {collegeName && <span className="block truncate text-xs text-slate-400">{collegeName}</span>}
+          <span className="mt-1 block text-xs text-indigo-300">Switch ⇄</span>
+        </button>
       </div>
       <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-col md:px-3">
         {NAV.map((item) => (
