@@ -4,7 +4,8 @@
 // Returns { ok, issues: [{ severity: 'error' | 'warning', message, fix }] }.
 // ok is false when any issue is an error.
 
-import { blocksPerDay, periodsPerWeek, roomTypeFor, sessionLength, unavailableSet } from './model.js'
+import { blocksPerDay, periodsPerWeek, roomTypeFor, sessionLength, stretchesPerDay, unavailableSet } from './model.js'
+import { daySchedule, formatTime } from './time.js'
 
 export function precheck(data) {
   const { settings, rooms = [], teachers = [], sections = [], assignments = [] } = data
@@ -37,7 +38,11 @@ export function precheck(data) {
         error(`${name} is ${a.hoursPerWeek} hours but each lab session is ${len} periods, which does not divide evenly.`, `Make the hours a multiple of ${len}.`)
       }
       if (blocksPerDay(settings, len) === 0) {
-        error(`${name} needs ${len} periods in a row, but no part of the day is that long without hitting the break.`, 'Shorten the lab or move the break.')
+        const longest = Math.max(0, ...stretchesPerDay(settings))
+        error(
+          `${name} needs ${len} periods in a row, but breaks split the day into shorter stretches (the longest is ${longest} period${longest === 1 ? '' : 's'}).`,
+          'Shorten the lab, or move or remove a break in Setup → Settings.',
+        )
       }
     }
   }
@@ -106,6 +111,10 @@ export function precheck(data) {
     if (hours <= week && hours > week * 0.9) {
       warning(`${s.name} uses ${hours} of ${week} periods, which leaves very little room to avoid clashes.`, 'Consider reducing hours or adding periods.')
     }
+  }
+  const { dayEnd } = daySchedule(settings)
+  if (dayEnd > 20 * 60 && dayEnd <= 24 * 60) {
+    warning(`The college day ends at ${formatTime(dayEnd)}.`, 'Check the start time, period length and breaks in Setup → Settings.')
   }
 
   return { ok: !issues.some((i) => i.severity === 'error'), issues }

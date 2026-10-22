@@ -1,9 +1,10 @@
-// A tiny college used by the tests: 2 days × 4 periods, break after period 2.
-// Also a random college generator for the stress test.
+// A tiny college used by the tests: 2 days × 4 periods, lunch break after period 2.
+// Also the same college in the OLD (version 1) format, and a random college generator for the stress test.
 
 export function tinyCollege() {
   return {
-    settings: { days: ['Mon', 'Tue'], periodsPerDay: 4, breakAfterPeriod: 2 },
+    schemaVersion: 2,
+    settings: { days: ['Mon', 'Tue'], periodsPerDay: 4, startTime: '09:00', periodMinutes: 50, breaks: [{ id: 'B1', name: 'Lunch', afterPeriod: 2, minutes: 40 }] },
     rooms: [
       { id: 'L1', name: 'Room 1', type: 'lecture', capacity: 40 },
       { id: 'LB', name: 'Lab', type: 'lab', capacity: 40 },
@@ -49,7 +50,15 @@ export function randomCollege(rng) {
 
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].slice(0, int(4, 6))
   const periodsPerDay = int(5, 8)
-  const settings = { days, periodsPerDay, breakAfterPeriod: int(2, periodsPerDay - 2) }
+  // 0 to 3 breaks at different positions, with random lengths.
+  const breakSpots = [...new Set(times(int(0, 3), () => int(1, periodsPerDay - 1)))]
+  const settings = {
+    days,
+    periodsPerDay,
+    startTime: pick(['08:30', '09:00', '09:15']),
+    periodMinutes: pick([40, 45, 50, 60]),
+    breaks: breakSpots.map((afterPeriod, i) => ({ id: `B${i}`, name: `Break ${i + 1}`, afterPeriod, minutes: pick([10, 15, 30, 45]) })),
+  }
 
   const rooms = [
     ...times(int(2, 6), (i) => ({ id: `R${i}`, name: `Room ${i}`, type: 'lecture', capacity: int(30, 80) })),
@@ -82,5 +91,13 @@ export function randomCollege(rng) {
       })
     }
   }
-  return { settings, rooms, teachers, sections, assignments }
+  return { schemaVersion: 2, settings, rooms, teachers, sections, assignments }
+}
+
+/** tinyCollege() as the version-1 app saved it: no schemaVersion, one break as breakAfterPeriod. */
+export function tinyCollegeV1() {
+  const data = tinyCollege()
+  delete data.schemaVersion
+  data.settings = { days: ['Mon', 'Tue'], periodsPerDay: 4, breakAfterPeriod: 2 }
+  return data
 }

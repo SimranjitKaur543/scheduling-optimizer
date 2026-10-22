@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { findSubstitutes } from '../engine/score.js'
+import { daySchedule, formatRange } from '../engine/time.js'
 
 // "Teacher X is absent on Tuesday: who can cover each of their classes?"
 export default function SubstituteFinder({ data, placements }) {
@@ -7,7 +8,13 @@ export default function SubstituteFinder({ data, placements }) {
   const [day, setDay] = useState(0)
   const teacher = data.teachers.find((t) => t.id === teacherId)
   const classes = teacher ? findSubstitutes(data, placements, teacherId, day) : []
-  const periodLabel = (p) => (p.length > 1 ? `Periods ${p.startPeriod + 1}–${p.startPeriod + p.length}` : `Period ${p.startPeriod + 1}`)
+  const times = daySchedule(data.settings).periods
+  const periodLabel = (p) => {
+    const label = p.length > 1 ? `Periods ${p.startPeriod + 1}–${p.startPeriod + p.length}` : `Period ${p.startPeriod + 1}`
+    const first = times[p.startPeriod]
+    const last = times[p.startPeriod + p.length - 1]
+    return first && last ? `${label} (${formatRange(first.start, last.end)})` : label
+  }
 
   return (
     <div>

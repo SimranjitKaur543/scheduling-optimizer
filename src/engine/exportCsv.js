@@ -1,15 +1,17 @@
 // Turns a timetable into a CSV file that opens cleanly in Excel or Google Sheets.
 
 import { indexById } from './model.js'
+import { daySchedule, formatTime } from './time.js'
 
 const quote = (value) => {
   const s = String(value ?? '')
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
-/** One row per class: Section, Day, Period(s), Subject, Type, Teacher, Room. Sorted by section, day, period. */
+/** One row per class: Section, Day, Period(s), Start, End, Subject, Type, Teacher, Room. Sorted by section, day, period. */
 export function timetableToCsv(data, placements) {
   const byId = indexById(data)
+  const { periods } = daySchedule(data.settings)
   const sectionOrder = Object.fromEntries(data.sections.map((s, i) => [s.id, i]))
   const rows = placements
     .map((p) => ({ p, a: byId.assignments[p.assignmentId] }))
@@ -19,12 +21,14 @@ export function timetableToCsv(data, placements) {
       byId.sections[a.sectionId]?.name,
       data.settings.days[p.day],
       p.length > 1 ? `${p.startPeriod + 1}-${p.startPeriod + p.length}` : `${p.startPeriod + 1}`,
+      periods[p.startPeriod] ? formatTime(periods[p.startPeriod].start) : '',
+      periods[p.startPeriod + p.length - 1] ? formatTime(periods[p.startPeriod + p.length - 1].end) : '',
       a.subject,
       a.kind === 'lab' ? 'Lab' : 'Lecture',
       byId.teachers[a.teacherId]?.name,
       byId.rooms[p.roomId]?.name,
     ])
-  const header = ['Section', 'Day', 'Period', 'Subject', 'Type', 'Teacher', 'Room']
+  const header = ['Section', 'Day', 'Period', 'Start', 'End', 'Subject', 'Type', 'Teacher', 'Room']
   return [header, ...rows].map((r) => r.map(quote).join(',')).join('\r\n')
 }
 

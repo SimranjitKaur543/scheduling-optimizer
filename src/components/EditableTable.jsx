@@ -3,7 +3,7 @@ import { Fragment, useState } from 'react'
 /**
  * One table component reused for rooms, teachers, sections and assignments.
  *
- * columns: [{ key, label, type: 'text' | 'number' | 'select' | 'custom', options: [{value, label}],
+ * columns: [{ key, label, type: 'text' | 'number' | 'select' | 'custom', options: [{value, label}], parse (select: turn the chosen text back into e.g. a number),
  *             placeholder, min, max, width, disabled(row), render(row, onRowChange) }]
  * errors:  { rowId: { key: message } } shown under the matching cell
  * renderExpanded(row): optional extra full-width content under a row (e.g. availability grid)
@@ -21,7 +21,8 @@ export default function EditableTable({ columns, rows, errors = {}, onRowChange,
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="overflow-x-auto">
+      {/* `relative` keeps the screen-reader-only labels inside this scroll box, so the table never widens the page on phones. */}
+      <div className="relative overflow-x-auto">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
@@ -119,7 +120,7 @@ function Cell({ column: c, row, error, onRowChange }) {
   if (c.type === 'custom') return c.render(row, onRowChange)
   if (c.type === 'select') {
     return (
-      <select className={base} value={row[c.key] ?? ''} disabled={disabled} onChange={(e) => set(e.target.value)} aria-label={c.label}>
+      <select className={base} value={row[c.key] ?? ''} disabled={disabled} onChange={(e) => set(c.parse ? c.parse(e.target.value) : e.target.value)} aria-label={c.label}>
         {!c.options.some((o) => o.value === row[c.key]) && <option value="">Choose…</option>}
         {c.options.map((o) => (
           <option key={o.value} value={o.value}>

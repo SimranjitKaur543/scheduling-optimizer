@@ -65,6 +65,16 @@ describe('validator', () => {
     expect(failedRules(validateTimetable(tinyCollege(), result))).toContain('block')
   })
 
+  it('catches a lab across any one of several breaks, and names that break', () => {
+    const data = tinyCollege()
+    data.settings.breaks.push({ id: 'B2', name: 'Tea break', afterPeriod: 3, minutes: 15 })
+    const result = tinyValidResult()
+    // The lab is in periods 3-4, which now straddle the tea break after period 3.
+    const report = validateTimetable(data, result)
+    expect(failedRules(report)).toEqual(new Set(['block']))
+    expect(report.errors[0].message).toMatch(/runs across the Tea break/)
+  })
+
   it('catches missing hours that are not reported as unplaced', () => {
     const result = tinyValidResult()
     result.placements.pop() // drop the lab silently

@@ -1,7 +1,11 @@
 // Field-level checks for the Setup page: catches typos and missing values while the
 // administrator types. (precheck.js handles the bigger "can this ever be scheduled?" maths.)
 //
-// Returns { settings: {field: msg}, rooms: {rowId: {field: msg}}, teachers, sections, assignments, count }
+// Returns { settings: {field: msg}, breaks: {breakId: {field: msg}}, rooms: {rowId: {field: msg}},
+//           teachers, sections, assignments, count }
+
+import { CURRENT_SCHEMA_VERSION } from './migrate.js'
+import { DEFAULT_LUNCH_MINUTES, DEFAULT_PERIOD_MINUTES, DEFAULT_START_TIME, daySchedule, parseTime } from './time.js'
 
 export const ALL_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
@@ -9,7 +13,7 @@ const isWhole = (v) => v !== '' && v !== null && v !== undefined && Number.isInt
 
 export function validateSetup(data) {
   const { settings } = data
-  const out = { settings: {}, rooms: {}, teachers: {}, sections: {}, assignments: {}, count: 0 }
+  const out = { settings: {}, breaks: {}, rooms: {}, teachers: {}, sections: {}, assignments: {}, count: 0 }
   const flag = (group, id, field, message) => {
     if (id === null) out[group][field] = message
     else (out[group][id] ||= {})[field] = message
@@ -23,6 +27,26 @@ export function validateSetup(data) {
   }
   const periods = Number(settings.periodsPerDay) || 0
   const week = (settings.days?.length || 0) * periods
+
+  // --- Times and breaks ---
+  if (parseTime(settings.startTime) === null) flag('settings', null, 'startTime', 'Enter a start time, for example 09:00.')
+  if (!isWhole(settings.periodMinutes) || settings.periodMinutes < 10 || settings.periodMinutes > 240) {
+    flag('settings', null, 'periodMinutes', 'Period length must be a whole number of minutes from 10 to 240.')
+  }
+  const breakAt = new Map()
+  for (const b of settings.breaks || []) {
+    if (!(b.name || '').trim()) flag('breaks', b.id, 'name', 'Name is required.')
+    if (!isWhole(b.afterPeriod) || b.afterPeriod < 1 || b.afterPeriod >= periods) {
+      // Never removed automatically (e.g. after reducing periods per day): the admin decides.
+      flag('breaks', b.id, 'afterPeriod', periods > 1 ? `Must be after period 1 to ${periods - 1}.` : 'A day with one period cannot have a break.')
+    } else if (breakAt.has(b.afterPeriod)) {
+      flag('breaks', b.id, 'afterPeriod', `Another break is already after period ${b.afterPeriod}. Combine them into one.`)
+    } else breakAt.set(b.afterPeriod, b.id)
+    if (!isWhole(b.minutes) || b.minutes < 1 || b.minutes > 240) flag('breaks', b.id, 'minutes', 'Enter 1 to 240 minutes.')
+  }
+  if (!out.settings.startTime && !out.settings.periodMinutes && periods && daySchedule(settings).dayEnd > 24 * 60) {
+    flag('settings', null, 'periodMinutes', 'The day would end after midnight. Start earlier, or use shorter periods or breaks.')
+  }
 
   // Names must be filled in and unique within each list.
   function checkNames(group, rows) {
@@ -84,7 +108,15 @@ export function validateSetup(data) {
 /** A blank college to start from. */
 export function makeBlankCollege() {
   return {
-    settings: { collegeName: 'My College', days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], periodsPerDay: 7, breakAfterPeriod: 4 },
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+    settings: {
+      collegeName: 'My College',
+      days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+      periodsPerDay: 7,
+      startTime: DEFAULT_START_TIME,
+      periodMinutes: DEFAULT_PERIOD_MINUTES,
+      breaks: [{ id: 'B1', name: 'Lunch', afterPeriod: 4, minutes: DEFAULT_LUNCH_MINUTES }],
+    },
     rooms: [],
     teachers: [],
     sections: [],

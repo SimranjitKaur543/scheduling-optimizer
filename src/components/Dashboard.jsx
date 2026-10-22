@@ -1,7 +1,23 @@
 import ResultSummary from './ResultSummary.jsx'
+import { daySchedule, formatTime } from '../engine/time.js'
 
-export default function Dashboard({ workspaceName, data, check, setupErrorCount, run, generating, onGenerate, onViewTimetable, onOpenSetup, onOpenWorkspaces, onNewSample }) {
+export default function Dashboard({
+  workspaceName,
+  data,
+  check,
+  setupErrorCount,
+  run,
+  generating,
+  migrationNotes = [],
+  onDismissNotes,
+  onGenerate,
+  onViewTimetable,
+  onOpenSetup,
+  onOpenWorkspaces,
+  onNewSample,
+}) {
   const totalPeriods = data.assignments.reduce((sum, a) => sum + (a.hoursPerWeek || 0), 0)
+  const { dayStart, dayEnd, breaks } = daySchedule(data.settings)
   const labRooms = data.rooms.filter((r) => r.type === 'lab').length
   const isEmpty = data.assignments.length === 0
   const errors = check.issues.filter((i) => i.severity === 'error')
@@ -14,13 +30,34 @@ export default function Dashboard({ workspaceName, data, check, setupErrorCount,
           <p className="text-xs font-medium uppercase tracking-wide text-indigo-700">Dashboard</p>
           <h1 className="truncate text-2xl font-bold tracking-tight">{workspaceName}</h1>
           <p className="mt-1 text-sm text-slate-600">
-            {data.settings.collegeName || 'No organisation name'} · {data.settings.days.length} days × {data.settings.periodsPerDay} periods
+            {data.settings.collegeName || 'No organisation name'} · {data.settings.days.length} days × {data.settings.periodsPerDay} periods ·{' '}
+            {formatTime(dayStart)}–{formatTime(dayEnd)}
+            {breaks.length > 0 && ` · ${breaks.length} break${breaks.length === 1 ? '' : 's'}`}
           </p>
         </div>
         <button onClick={onOpenWorkspaces} className="shrink-0 self-start rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100 sm:self-auto">
           ⇄ Switch or create timetable
         </button>
       </header>
+
+      {migrationNotes.length > 0 && (
+        <section className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950" role="status">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="font-semibold">This timetable was upgraded to the new format</h2>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                {migrationNotes.map((note, i) => (
+                  <li key={i}>{note}</li>
+                ))}
+              </ul>
+              <p className="mt-1 text-xs text-sky-800">Nothing was deleted, and existing classes stay in the same periods.</p>
+            </div>
+            <button onClick={onDismissNotes} className="shrink-0 rounded-md bg-white px-3 py-1.5 font-medium text-sky-900 shadow-sm hover:bg-sky-100">
+              Got it
+            </button>
+          </div>
+        </section>
+      )}
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Stat label="Sections" value={data.sections.length} />

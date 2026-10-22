@@ -86,6 +86,12 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 text-slate-900 md:flex">
       <Sidebar page={page} onNavigate={setPage} workspaceName={active.name} collegeName={data.settings.collegeName} setupErrorCount={setupErrors.count} />
       <main className="flex-1 min-w-0 px-4 py-6 md:px-8 md:py-8 print:p-0">
+        {store.unreadable?.length > 0 && (
+          <p className="mx-auto mb-4 max-w-6xl rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900 print:hidden">
+            ! {store.unreadable.length} saved timetable{store.unreadable.length === 1 ? '' : 's'} could not be opened (damaged, or made by a newer version
+            of this app). {store.unreadable.length === 1 ? 'It is' : 'They are'} kept in this browser and nothing was deleted.
+          </p>
+        )}
         {saveFailed && (
           <p className="mx-auto mb-4 max-w-6xl rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900 print:hidden">
             ! This browser is not saving your changes (storage is full or blocked). Use Export JSON in Setup to keep a copy.
@@ -96,7 +102,7 @@ export default function App() {
             store={store}
             onOpen={openWorkspace}
             onCreate={createWorkspace}
-            onImport={(name, imported) => addWorkspace(makeWorkspace(name, imported))}
+            onImport={(name, imported, notes) => addWorkspace(makeWorkspace(name, imported, Date.now(), notes))}
             onRename={(id, name) => updateWorkspace(id, { name })}
             onDuplicate={duplicate}
             onDelete={(id) => setStore((s) => removeWorkspace(s, id))}
@@ -115,6 +121,8 @@ export default function App() {
             onOpenSetup={() => setPage('setup')}
             onOpenWorkspaces={() => setPage('workspaces')}
             onNewSample={() => createWorkspace('sample')}
+            migrationNotes={active.migrationNotes}
+            onDismissNotes={() => setStore((s) => ({ ...s, workspaces: s.workspaces.map((w) => (w.id === active.id ? { ...w, migrationNotes: [] } : w)) }))}
           />
         )}
         {page === 'setup' && <SetupPage data={data} errors={setupErrors} onChange={editData} />}

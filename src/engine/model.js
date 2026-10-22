@@ -1,6 +1,8 @@
 // Shared helpers used by the pre-check, solver and validator.
 // Days and periods are 0-based indexes: day 0 = settings.days[0], period 0 = first period.
 
+import { breakPoints } from './time.js'
+
 /** Total teaching periods in one week. */
 export function periodsPerWeek(settings) {
   return settings.days.length * settings.periodsPerDay
@@ -8,22 +10,22 @@ export function periodsPerWeek(settings) {
 
 /**
  * True if a block of `length` periods starting at `start` runs past the end of the day
- * or across the break. The break sits between period (breakAfterPeriod - 1) and breakAfterPeriod.
+ * or across ANY break. A break after period N sits between period index N-1 and N.
  */
 export function blockIsInvalid(settings, start, length) {
   if (start < 0 || start + length > settings.periodsPerDay) return true
-  const b = settings.breakAfterPeriod
-  if (!b || b <= 0 || b >= settings.periodsPerDay) return false
-  return start < b && start + length > b
+  return breakPoints(settings).some((b) => start < b && start + length > b)
 }
 
-/** Number of non-overlapping blocks of `length` periods that fit in one day without crossing the break. */
+/** The unbroken stretches of a day between breaks, as lengths in periods, e.g. [2, 2, 3]. */
+export function stretchesPerDay(settings) {
+  const edges = [0, ...breakPoints(settings), settings.periodsPerDay]
+  return edges.slice(1).map((edge, i) => edge - edges[i])
+}
+
+/** Number of non-overlapping blocks of `length` periods that fit in one day without crossing a break. */
 export function blocksPerDay(settings, length) {
-  const b = settings.breakAfterPeriod
-  if (!b || b <= 0 || b >= settings.periodsPerDay) {
-    return Math.floor(settings.periodsPerDay / length)
-  }
-  return Math.floor(b / length) + Math.floor((settings.periodsPerDay - b) / length)
+  return stretchesPerDay(settings).reduce((sum, stretch) => sum + Math.floor(stretch / length), 0)
 }
 
 /** Length in periods of one session of this assignment. */

@@ -56,13 +56,17 @@ describe('solver', () => {
     expect(result.placements.filter((p) => p.roomId === 'LB')).toHaveLength(3)
   })
 
-  it('never lets a lab cross the break or split up', () => {
+  it('never lets a lab cross any break or split up', () => {
     const data = makeSampleCollege()
     const result = run(data, 3)
-    const { breakAfterPeriod } = data.settings
-    for (const p of result.placements.filter((x) => x.length > 1)) {
-      const crosses = p.startPeriod < breakAfterPeriod && p.startPeriod + p.length > breakAfterPeriod
-      expect(crosses).toBe(false)
+    const labs = result.placements.filter((x) => x.length > 1)
+    expect(labs.length).toBeGreaterThan(0)
+    // The sample has two breaks: after period 2 (tea) and after period 4 (lunch).
+    for (const breakAfter of data.settings.breaks.map((b) => b.afterPeriod)) {
+      for (const p of labs) {
+        const crosses = p.startPeriod < breakAfter && p.startPeriod + p.length > breakAfter
+        expect(crosses).toBe(false)
+      }
     }
   })
 

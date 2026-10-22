@@ -4,7 +4,13 @@ const settings = {
   collegeName: 'Government College of Engineering (Demo)',
   days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
   periodsPerDay: 7,
-  breakAfterPeriod: 4, // lunch break after the 4th period
+  startTime: '09:00',
+  periodMinutes: 50,
+  // Breaks sit between periods; labs can never run across them.
+  breaks: [
+    { id: 'B1', name: 'Tea break', afterPeriod: 2, minutes: 15 },
+    { id: 'B2', name: 'Lunch', afterPeriod: 4, minutes: 40 },
+  ],
 }
 
 const rooms = [
@@ -111,6 +117,7 @@ function buildAssignments(rows) {
 /** A realistic college that can be scheduled with no clashes. */
 export function makeSampleCollege() {
   return structuredClone({
+    schemaVersion: 2,
     settings,
     rooms,
     teachers,

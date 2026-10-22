@@ -3,6 +3,7 @@ import EditableTable from './EditableTable.jsx'
 import AvailabilityGrid from './AvailabilityGrid.jsx'
 import { ALL_DAYS, newId } from '../engine/setupValidation.js'
 import { downloadJson, fileSlug } from '../engine/exportCsv.js'
+import { daySchedule, formatRange, formatTime } from '../engine/time.js'
 
 const TABS = [
   { id: 'settings', label: 'Settings' },
@@ -20,7 +21,7 @@ export default function SetupPage({ data, errors, onChange }) {
   const set = (key, value) => onChange({ ...data, [key]: value })
   const updateRow = (key) => (row) => set(key, data[key].map((r) => (r.id === row.id ? row : r)))
   const countErrors = (group) => Object.values(errors[group] || {}).reduce((n, e) => n + Object.keys(e).length, 0)
-  const tabErrors = { settings: Object.keys(errors.settings).length, rooms: countErrors('rooms'), teachers: countErrors('teachers'), sections: countErrors('sections'), assignments: countErrors('assignments') }
+  const tabErrors = { settings: Object.keys(errors.settings).length + countErrors('breaks'), rooms: countErrors('rooms'), teachers: countErrors('teachers'), sections: countErrors('sections'), assignments: countErrors('assignments') }
 
   // Deleting a teacher or section also removes the subjects that depend on it.
   // The table asks first (inside the page) when there are linked subjects.
@@ -72,7 +73,7 @@ export default function SetupPage({ data, errors, onChange }) {
         ))}
       </div>
 
-      {tab === 'settings' && <SettingsForm data={data} errors={errors.settings} onChange={onChange} />}
+      {tab === 'settings' && <SettingsForm data={data} errors={errors.settings} breakErrors={errors.breaks} onChange={onChange} />}
 
       {tab === 'rooms' && (
         <EditableTable
@@ -198,7 +199,7 @@ export default function SetupPage({ data, errors, onChange }) {
   )
 }
 
-function SettingsForm({ data, errors, onChange }) {
+function SettingsForm({ data, errors, breakErrors, onChange }) {
   const { settings } = data
   const setSettings = (patch) => onChange({ ...data, settings: { ...settings, ...patch } })
 
@@ -216,7 +217,7 @@ function SettingsForm({ data, errors, onChange }) {
   const input = (error) => `mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm ${error ? 'border-red-400' : 'border-slate-300'}`
 
   return (
-    <div className="grid gap-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2">
       <label className="block text-sm font-medium">
         College name
         <input className={input()} value={settings.collegeName || ''} onChange={(e) => setSettings({ collegeName: e.target.value })} />
@@ -252,18 +253,88 @@ function SettingsForm({ data, errors, onChange }) {
         />
         {errors.periodsPerDay && <span className="mt-1 block text-xs font-normal text-red-600">{errors.periodsPerDay}</span>}
       </label>
-      <label className="block text-sm font-medium">
-        Lunch break
-        <select className={input()} value={settings.breakAfterPeriod || 0} onChange={(e) => setSettings({ breakAfterPeriod: Number(e.target.value) })}>
-          <option value={0}>No break</option>
-          {Array.from({ length: Math.max(0, periods - 1) }, (_, i) => (
-            <option key={i + 1} value={i + 1}>
-              After period {i + 1}
-            </option>
-          ))}
-        </select>
-        <span className="mt-1 block text-xs font-normal text-slate-500">Labs are never split across the break.</span>
-      </label>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="block text-sm font-medium">
+          First period starts at
+          <input type="time" className={input(errors.startTime)} value={settings.startTime || ''} onChange={(e) => setSettings({ startTime: e.target.value })} />
+          {errors.startTime && <span className="mt-1 block text-xs font-normal text-red-600">{errors.startTime}</span>}
+        </label>
+        <label className="block text-sm font-medium">
+          Period length (minutes)
+          <input
+            type="number"
+            min={10}
+            max={240}
+            className={input(errors.periodMinutes)}
+            value={settings.periodMinutes ?? ''}
+            onChange={(e) => setSettings({ periodMinutes: e.target.value === '' ? '' : Number(e.target.value) })}
+          />
+          {errors.periodMinutes && <span className="mt-1 block text-xs font-normal text-red-600">{errors.periodMinutes}</span>}
+        </label>
+      </div>
+
+      <div className="min-w-0 md:col-span-2">
+        <h3 className="text-sm font-medium">Breaks</h3>
+        <p className="mb-2 text-xs text-slate-500">
+          Breaks sit between periods and apply to the whole college. Labs are never split across a break.
+        </p>
+        <EditableTable
+          rows={settings.breaks || []}
+          errors={breakErrors}
+          onRowChange={(row) => setSettings({ breaks: settings.breaks.map((b) => (b.id === row.id ? row : b)) })}
+          onDelete={(row) => setSettings({ breaks: settings.breaks.filter((b) => b.id !== row.id) })}
+          onAdd={() => setSettings({ breaks: [...(settings.breaks || []), { id: newId('B'), name: 'Break', afterPeriod: firstFreeSpot(settings), minutes: 15 }] })}
+          addLabel="Add break"
+          emptyText="No breaks. Classes run back to back all day."
+          columns={[
+            { key: 'name', label: 'Break name', placeholder: 'e.g. Lunch' },
+            {
+              key: 'afterPeriod',
+              label: 'Comes after',
+              type: 'select',
+              width: 170,
+              options: Array.from({ length: Math.max(0, periods - 1) }, (_, i) => ({ value: i + 1, label: `Period ${i + 1}` })),
+              parse: Number,
+            },
+            { key: 'minutes', label: 'Minutes', type: 'number', min: 1, max: 240, width: 120 },
+          ]}
+        />
+        <DayPreview settings={settings} />
+      </div>
+    </div>
+  )
+}
+
+// First "after period N" without a break yet, for a newly added break.
+function firstFreeSpot(settings) {
+  const used = new Set((settings.breaks || []).map((b) => Number(b.afterPeriod)))
+  for (let n = 1; n < (Number(settings.periodsPerDay) || 0); n++) if (!used.has(n)) return n
+  return 1
+}
+
+// The day at a glance: every period and break with its clock time.
+function DayPreview({ settings }) {
+  const { periods, breaks, dayStart, dayEnd } = daySchedule(settings)
+  if (!periods.length) return null
+  const items = [
+    ...periods.map((p, i) => ({ ...p, label: `P${i + 1}`, isBreak: false })),
+    ...breaks.map((b) => ({ ...b, label: b.name || 'Break', isBreak: true })),
+  ].sort((a, b) => a.start - b.start || Number(a.isBreak) - Number(b.isBreak))
+  return (
+    <div className="mt-3 rounded-lg bg-slate-50 p-3">
+      <p className="text-xs font-medium text-slate-700">
+        Your day: {formatTime(dayStart)} to {formatTime(dayEnd)}
+      </p>
+      <ol className="mt-2 flex flex-wrap gap-1.5 text-xs">
+        {items.map((item, i) => (
+          <li
+            key={i}
+            className={`rounded-md border px-2 py-1 ${item.isBreak ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-slate-200 bg-white text-slate-700'}`}
+          >
+            <span className="font-semibold">{item.label}</span> {formatRange(item.start, item.end)}
+          </li>
+        ))}
+      </ol>
     </div>
   )
 }

@@ -23,6 +23,8 @@ src/engine/sampleData.js   demo college (several departments, one shared compute
 src/engine/precheck.js     quick maths checks that catch impossible setups before solving
 src/engine/solver.js       least-options-first greedy + random restarts
 src/engine/workspaces.js   My timetables: many saved timetables per browser
+src/engine/time.js         clock times + breaks (validBreaks, breakPoints, daySchedule); the ONLY place break logic lives
+src/engine/migrate.js      migrateCollegeData(data) -> { data, warnings } | { error }; one upgrade step per schemaVersion
 src/engine/validator.js    independent clash checker (never trusts the solver)
 src/engine/score.js        soft-goal scoring + analytics (teacher load, room usage)
 src/engine/*.test.js       Vitest tests
@@ -34,7 +36,8 @@ src/App.jsx
 
 ## Data model
 
-- **settings**: `days` (e.g. Mon–Sat), `periodsPerDay`, `breakAfterPeriod`
+- **schemaVersion**: `2` (data without it is version 1 and is upgraded by `engine/migrate.js`)
+- **settings**: `days` (e.g. Mon–Sat), `periodsPerDay`, `startTime` ("09:00"), `periodMinutes` (50), `breaks` (list of `{id, name, afterPeriod, minutes}`; a break sits between period `afterPeriod` and the next). Version 1 had a single `breakAfterPeriod` instead.
 - **rooms**: `id`, `name`, `type` (`"lecture"` | `"lab"`), `capacity`
 - **teachers**: `id`, `name`, `unavailable` (list of `{day, period}`), optional `maxPerDay`
 - **sections**: `id`, `name`, `department`, `size`
@@ -46,7 +49,7 @@ src/App.jsx
 1. A teacher is in only one place at a time.
 2. A room holds only one class at a time (rooms are shared across all departments).
 3. A section attends only one class at a time.
-4. Labs go in lab rooms, use consecutive periods, and never cross the break.
+4. Labs go in lab rooms, use consecutive periods, and never cross any break.
 5. Room capacity ≥ section size.
 6. Teacher unavailable slots are respected.
 7. Completeness: every assignment gets all its weekly hours, or each missing session is listed in `unplaced` with a reason.
@@ -110,4 +113,6 @@ npm run build        # production build (Vercel runs this)
 - Demo insight: in the sample, Room 301 (50 seats) is never used because every section has 55+ students; the heatmap shows it.
 - Stage 7 done: `README.md` (problem, features, 1-minute walkthrough, algorithm, rules, local setup, tests, JSON format, structure, known limits). Polish: favicon + meta description; blank college shows a "Get started in 4 steps" guide instead of Generate. Live site checked after Stage 6 push: 130/130 placed, verified, Report works.
 - Stage 8 done: My timetables. `engine/workspaces.js` (+ `workspaces.test.js`): store `{ activeId, workspaces: [{ id, name, data, result, edited, createdAt, updatedAt }] }` in localStorage key `scheduling-optimizer:workspaces:v2`; the old `scheduling-optimizer:data:v1` save is upgraded automatically. The generated `result` is saved per timetable and re-checked with `validateTimetable` whenever it is shown. `WorkspacesPage` lists cards with status (not generated / ready / partial); the sidebar shows the open timetable with a Switch button. Sample/impossible/blank/import now create a new timetable instead of overwriting (removed from Dashboard and Setup; Setup keeps Export JSON). 44 tests pass. Checked in browser: upgrade from v1, two timetables generated, switch, reload keeps results, rename/duplicate/delete, 375px.
+- Extension plan (approved in phases, on branch `feature/time-and-breaks`): Phase 1 clock times + multiple college-wide breaks (DONE); Phase 1b day-specific timings (e.g. half-day Saturday); Phase 2 section-specific breaks (staggered lunch, a break occupies a period slot for chosen sections); Phase 3 shared student groups via "splits" inside sections (electives, combined classes, lab batches); Phase 4 Supabase accounts (plan only, needs approval). Each phase: plan → approval → code + tests → all tests + build → commit.
+- Phase 1 done: `time.js` (+ `time.test.js`), `migrate.js` (+ `migrate.test.js`, v1 → v2: `breakAfterPeriod` becomes a 40-min "Lunch" break, start 09:00, 50-min periods; unknown fields kept; odd values kept as `legacyBreakAfterPeriod` with a warning; newer versions refused). `model.js` `blockIsInvalid`/`blocksPerDay`/`stretchesPerDay` use all breaks (test proves identical answers to the old one-break rule, and identical solver output before/after migration with the same seed). Migration runs in `parseStore` (saved timetables; unreadable ones kept in `store.unreadable`, never deleted) and `prepareImport` (JSON import). Dashboard shows migration notes once ("Got it"). Setup → Settings: start time, period length, breaks table, "Your day" preview. Grid: period times + a row per break. CSV: Start/End columns. Sample college: tea break after P2 (15 min) + lunch after P4 (40 min). Fixed: `EditableTable` scroll box is `relative` so its sr-only label no longer widens Setup on phones. 68 tests pass; build passes; checked in browser (old-save upgrade + notice, breaks editor + preview, grid times, 130/130 verified, 375px).
 - Known limits (also in README): one teacher per class; no combined sections or lab batches; greedy + restarts, not exact; no drag-and-drop editing; no accounts: timetables stored per browser (accounts with cloud storage, e.g. Supabase, are a possible later phase; would need this file's "no login, no database" rule changed on purpose).

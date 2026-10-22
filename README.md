@@ -17,11 +17,11 @@ Most colleges still build timetables by hand at the start of every semester. Eac
 ## What it does
 
 0. **My timetables:** keep as many timetables as you need, for any number of colleges, departments, semesters or drafts. Each one has its own setup data, and its generated timetable is saved with it. Create a new one blank, from the sample or from a JSON file; rename, duplicate (for example, copy last semester and edit it), export or delete any of them.
-1. **Enter your college:** working days, periods per day, lunch break, rooms (lecture or lab, with seats), teachers (with times they are unavailable and an optional daily limit), sections (with student count) and subjects (section + subject + teacher + periods per week, lecture or lab).
+1. **Enter your college:** working days, periods per day, the start time and period length, any number of breaks (tea, lunch, …, each with its own length), rooms (lecture or lab, with seats), teachers (with times they are unavailable and an optional daily limit), sections (with student count) and subjects (section + subject + teacher + periods per week, lecture or lab).
 2. **Pre-check:** before generating, quick maths checks catch setups that can never work and explain why in plain English, each with a suggested fix. For example: *"Prof. Ritu Bansal must teach 18 periods but is only available for 14. Fix: reduce their load by 4 periods…"*
 3. **Generate:** builds a full weekly timetable in about 1.5 seconds, trying 100+ versions and keeping the best one.
 4. **Verify:** an independent checker re-tests the result against every rule and shows **"Verified: 0 clashes"** rule by rule. A timetable that fails is never shown.
-5. **View:** see the week by **section, teacher or room**. Labs show as double-height blocks, and the lunch break is marked.
+5. **View:** see the week by **section, teacher or room**. Every period shows its real clock time (e.g. 9:00–9:50 am), labs show as double-height blocks, and every break is marked with its time.
 6. **Report:** teacher load chart, room-usage heatmap (spots empty rooms), and a **substitute finder** for absent teachers.
 7. **Export:** download the timetable as CSV (Excel / Google Sheets) or print / save it as PDF. Save and load all college data as a JSON file.
 
@@ -30,7 +30,8 @@ Most colleges still build timetables by hand at the start of every semester. Eac
 | Area | Feature |
 |---|---|
 | Core | Clash-free generation for teachers, rooms, sections and shared labs across departments |
-| Core | Labs in lab rooms only, in consecutive periods, never split by the lunch break |
+| Core | Labs in lab rooms only, in consecutive periods, never split by any break |
+| Time | Start time, period length and multiple breaks per college; real start/end times on the grid, CSV and print |
 | Core | Room capacity, teacher unavailability, teacher max periods per day |
 | Hard cases | Pre-check with plain-English reasons and fixes; partial timetable with a list of every class that could not be placed and *why* |
 | Quality | Spreads each subject across the week, balances teacher days, avoids idle gaps; shows how much better the result is than the first attempt |
@@ -58,7 +59,7 @@ The scheduler is a **"least options first" greedy algorithm with random restarts
    - the teacher is free and available,
    - the section is free,
    - a room of the right type (lecture / lab) with enough seats is free,
-   - and a lab does not cross the lunch break.
+   - and a lab does not cross any break.
 
    Because every placement is checked against all three grids, **a clash cannot be created**.
 4. **Pick the best spot.** Among the valid spots, prefer the one that keeps a subject off days it already has, respects the teacher's daily limit, avoids idle gaps, uses the best-fitting room and leans towards earlier periods.
@@ -77,7 +78,7 @@ The validator (`src/engine/validator.js`) is written separately from the solver 
 4. Labs are in lab rooms, lectures in lecture rooms.
 5. Every room is big enough for its section.
 6. Teachers are never booked when unavailable.
-7. Labs use consecutive periods and never cross the break.
+7. Labs use consecutive periods and never cross a break.
 8. Every subject gets all its weekly periods, or the missing ones are reported as unplaced.
 
 ## Run it locally
@@ -103,22 +104,32 @@ npm run preview    # serve the production build
 
 ## Tests
 
-44 automated tests (`npm test`), all passing:
+68 automated tests (`npm test`), all passing:
 
 | File | What it proves |
 |---|---|
-| `validator.test.js` | The checker catches every kind of problem: teacher, room and section clashes; wrong room type; room too small; unavailable teacher; lab across the break; silently missing hours |
+| `validator.test.js` | The checker catches every kind of problem: teacher, room and section clashes; wrong room type; room too small; unavailable teacher; lab across any of several breaks (and which break); silently missing hours |
 | `precheck.test.js` | Impossible setups are caught with a clear message and fix: overloaded teacher, too many hours for the week, section bigger than every room, not enough lab slots, no lab room |
-| `solver.test.js` | The sample college is fully scheduled with no clashes; unavailable teachers are respected; one lab shared by three sections never overlaps; labs never cross the break; the impossible scenario gives a clash-free partial result with reasons; restarts never make things worse; **stress test: 50 randomly generated colleges never produce a single clash** |
+| `solver.test.js` | The sample college is fully scheduled with no clashes; unavailable teachers are respected; one lab shared by three sections never overlaps; labs never cross any break; the impossible scenario gives a clash-free partial result with reasons; restarts never make things worse; **stress test: 50 randomly generated colleges never produce a single clash** |
 | `setupValidation.test.js` | Setup form checks: empty or duplicate names, bad numbers, lab hours that do not divide evenly, subjects pointing at deleted teachers or sections, bad import files |
 | `report.test.js` | Teacher load, room usage, substitute finder (never suggests a busy or unavailable teacher) and CSV format |
-| `workspaces.test.js` | My timetables: saved timetables and results read back correctly; data from the old one-college version is upgraded; broken storage never crashes the app; duplicates are fully independent; deleting the last timetable leaves a blank one |
+| `workspaces.test.js` | My timetables: saved timetables and results read back correctly; data from the old one-college version is upgraded; broken storage never crashes the app; duplicates are fully independent; deleting the last timetable leaves a blank one; damaged or newer-version timetables are kept aside, never deleted; imports are upgraded |
+| `time.test.js` | Clock times with 0, 1 and 2 breaks; labs blocked across every break; lab slots per day; with one break, the new rule gives exactly the same answers as the old one |
+| `migrate.test.js` | Old data (one lunch break) is upgraded to the new format without losing anything; odd old values are kept with a warning; newer files are refused; **an old timetable and its upgraded copy produce identical timetables** |
 
 ## Data format (JSON import / export)
 
 ```json
 {
-  "settings": { "collegeName": "My College", "days": ["Mon", "Tue", "Wed", "Thu", "Fri"], "periodsPerDay": 7, "breakAfterPeriod": 4 },
+  "schemaVersion": 2,
+  "settings": {
+    "collegeName": "My College", "days": ["Mon", "Tue", "Wed", "Thu", "Fri"], "periodsPerDay": 7,
+    "startTime": "09:00", "periodMinutes": 50,
+    "breaks": [
+      { "id": "B1", "name": "Tea break", "afterPeriod": 2, "minutes": 15 },
+      { "id": "B2", "name": "Lunch", "afterPeriod": 4, "minutes": 40 }
+    ]
+  },
   "rooms":    [{ "id": "R101", "name": "Room 101", "type": "lecture", "capacity": 60 }],
   "teachers": [{ "id": "T1", "name": "Dr. Kaur", "unavailable": [{ "day": 4, "period": 0 }], "maxPerDay": 4 }],
   "sections": [{ "id": "CSE-A", "name": "CSE 3rd Sem A", "department": "CSE", "size": 60 }],
@@ -129,7 +140,9 @@ npm run preview    # serve the production build
 }
 ```
 
-Days and periods in `unavailable` are 0-based (day 0 = first working day, period 0 = first period). `breakAfterPeriod: 4` means lunch comes after the 4th period.
+Days and periods in `unavailable` are 0-based (day 0 = first working day, period 0 = first period). A break with `afterPeriod: 4` sits between the 4th and 5th period; labs can never run across it. Times are worked out from `startTime`, `periodMinutes` and each break's `minutes`.
+
+**Older files still work.** Files saved before version 2 (with a single `breakAfterPeriod`) are upgraded automatically when imported or opened: the old lunch becomes a 40-minute "Lunch" break, times start at 9:00 am with 50-minute periods, and nothing else changes; classes stay in exactly the same periods. Files from a newer version of the app are refused with a clear message instead of being half-read.
 
 ## Project structure
 
@@ -137,6 +150,8 @@ Days and periods in `unavailable` are 0-based (day 0 = first working day, period
 src/
   engine/                 scheduling logic, no UI code (easy to test)
     model.js              shared helpers (sessions, break rules, look-ups)
+    time.js               clock times and breaks, shared by every part of the app
+    migrate.js            upgrades data saved by older versions (schemaVersion)
     sampleData.js         sample college + impossible scenario
     precheck.js           "can this ever work?" checks with fixes
     solver.js             least-options-first greedy + random restarts

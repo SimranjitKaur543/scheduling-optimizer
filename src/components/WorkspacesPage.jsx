@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react'
-import { checkImportShape } from '../engine/setupValidation.js'
-import { timetableStatus } from '../engine/workspaces.js'
+import { prepareImport, timetableStatus } from '../engine/workspaces.js'
 import { downloadJson, fileSlug } from '../engine/exportCsv.js'
 
 const STATUS = {
@@ -33,10 +32,9 @@ export default function WorkspacesPage({ store, onOpen, onCreate, onImport, onRe
     event.target.value = ''
     if (!file) return
     try {
-      const json = JSON.parse(await file.text())
-      const problem = checkImportShape(json)
-      if (problem) return setNotice({ kind: 'error', text: `${file.name}: ${problem}` })
-      onImport(json.settings.collegeName || file.name.replace(/\.json$/i, ''), json)
+      const imported = prepareImport(JSON.parse(await file.text()))
+      if (imported.error) return setNotice({ kind: 'error', text: `${file.name}: ${imported.error}` })
+      onImport(imported.data.settings.collegeName || file.name.replace(/\.json$/i, ''), imported.data, imported.warnings)
     } catch {
       setNotice({ kind: 'error', text: `${file.name} is not a valid JSON file.` })
     }

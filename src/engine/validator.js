@@ -4,6 +4,7 @@
 // result = { placements: [{ assignmentId, day, startPeriod, length, roomId }], unplaced: [{ assignmentId, length, reason }] }
 
 import { blockIsInvalid, indexById, roomTypeFor, sessionLength, unavailableSet } from './model.js'
+import { validBreaks } from './time.js'
 
 export const RULES = [
   { id: 'teacher', label: 'No teacher is in two places at once' },
@@ -12,7 +13,7 @@ export const RULES = [
   { id: 'roomType', label: 'Labs are in lab rooms, lectures in lecture rooms' },
   { id: 'capacity', label: 'Every room is big enough for its section' },
   { id: 'availability', label: 'Teachers are never booked when unavailable' },
-  { id: 'block', label: 'Labs use consecutive periods and never cross the break' },
+  { id: 'block', label: 'Labs use consecutive periods and never cross a break' },
   { id: 'complete', label: 'Every subject gets all its weekly hours (or is reported as unplaced)' },
 ]
 
@@ -62,7 +63,8 @@ export function validateTimetable(data, result) {
       add('block', `${what} on ${dayName(p.day)} is ${p.length} period(s) long but should be ${sessionLength(a)}.`)
     }
     if (blockIsInvalid(settings, p.startPeriod, p.length)) {
-      add('block', `${what} on ${slotName(p.day, p.startPeriod)} runs across the break or past the end of the day.`)
+      const crossed = validBreaks(settings).find((b) => p.startPeriod < b.afterPeriod && p.startPeriod + p.length > b.afterPeriod)
+      add('block', `${what} on ${slotName(p.day, p.startPeriod)} ${crossed ? `runs across the ${crossed.name || 'break'}` : 'runs past the end of the day'}.`)
     }
     if (room.type !== roomTypeFor(a)) {
       add('roomType', `${what} needs a ${roomTypeFor(a)} room but is in ${room.name} (${room.type}).`)

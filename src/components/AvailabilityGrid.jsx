@@ -1,7 +1,10 @@
+import { daySchedule, formatTime } from '../engine/time.js'
+
 // Clickable day × period grid for marking when a teacher is NOT available.
 export default function AvailabilityGrid({ settings, unavailable = [], onChange }) {
   const blocked = new Set(unavailable.map((u) => `${u.day}-${u.period}`))
   const periods = Array.from({ length: settings.periodsPerDay }, (_, p) => p)
+  const times = daySchedule(settings).periods
 
   function toggle(day, period) {
     const key = `${day}-${period}`
@@ -24,8 +27,9 @@ export default function AvailabilityGrid({ settings, unavailable = [], onChange 
             <tr>
               <th />
               {periods.map((p) => (
-                <th key={p} className="px-1 pb-1 font-medium text-slate-500">
+                <th key={p} className="px-1 pb-1 font-medium text-slate-500" title={times[p] ? `Starts ${formatTime(times[p].start)}` : undefined}>
                   P{p + 1}
+                  {times[p] && <span className="block text-[9px] font-normal tabular-nums">{formatTime(times[p].start).replace(' ', '')}</span>}
                 </th>
               ))}
             </tr>

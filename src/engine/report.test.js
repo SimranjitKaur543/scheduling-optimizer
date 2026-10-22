@@ -42,9 +42,10 @@ describe('CSV export', () => {
     const data = tinyCollege()
     data.assignments[0].subject = 'Maths, Part 1'
     const lines = timetableToCsv(data, tinyValidResult().placements).split('\r\n')
-    expect(lines[0]).toBe('Section,Day,Period,Subject,Type,Teacher,Room')
+    expect(lines[0]).toBe('Section,Day,Period,Start,End,Subject,Type,Teacher,Room')
     expect(lines).toHaveLength(6)
-    expect(lines[1]).toBe('Section 1,Mon,1,"Maths, Part 1",Lecture,Teacher One,Room 1')
-    expect(lines[2]).toBe('Section 1,Mon,3-4,Physics Lab,Lab,Teacher Two,Lab')
+    expect(lines[1]).toBe('Section 1,Mon,1,9:00 am,9:50 am,"Maths, Part 1",Lecture,Teacher One,Room 1')
+    // Periods 3-4 come after the 40-minute lunch (after period 2): 9:00 + 2×50 + 40 = 11:20.
+    expect(lines[2]).toBe('Section 1,Mon,3-4,11:20 am,1:00 pm,Physics Lab,Lab,Teacher Two,Lab')
   })
 })

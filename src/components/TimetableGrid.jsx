@@ -1,4 +1,5 @@
 import { indexById } from '../engine/model.js'
+import { daySchedule, formatRange } from '../engine/time.js'
 
 // Full class strings (not built from parts) so Tailwind keeps them in the build.
 const COLORS = [
@@ -27,11 +28,19 @@ function colorFor(subject) {
  * viewType: 'section' | 'teacher' | 'room'; entityId: that thing's id.
  */
 export default function TimetableGrid({ data, placements, viewType, entityId }) {
-  const { days, periodsPerDay, breakAfterPeriod } = data.settings
+  const { days, periodsPerDay } = data.settings
   const byId = indexById(data)
-  const hasBreak = breakAfterPeriod > 0 && breakAfterPeriod < periodsPerDay
-  // Grid row for a period: row 1 is the header, and the break gets its own row.
-  const rowOf = (p) => 2 + p + (hasBreak && p >= breakAfterPeriod ? 1 : 0)
+  const schedule = daySchedule(data.settings)
+  // Grid rows: row 1 is the header, then each period, with a thin row for every break after it.
+  // Labs never cross a break, so a lab's periods are always on neighbouring rows.
+  const periodRow = []
+  const breakRows = []
+  let row = 2
+  for (let p = 0; p < periodsPerDay; p++) {
+    periodRow[p] = row++
+    for (const b of schedule.breaks.filter((x) => x.afterPeriod === p + 1)) breakRows.push({ ...b, row: row++ })
+  }
+  const rowOf = (p) => periodRow[p]
 
   const mine = placements.filter((p) => {
     const a = byId.assignments[p.assignmentId]
@@ -44,7 +53,7 @@ export default function TimetableGrid({ data, placements, viewType, entityId }) 
     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm print:overflow-visible print:shadow-none">
       <div
         className="grid min-w-[640px] gap-px bg-slate-200"
-        style={{ gridTemplateColumns: `76px repeat(${days.length}, minmax(100px, 1fr))` }}
+        style={{ gridTemplateColumns: `96px repeat(${days.length}, minmax(100px, 1fr))` }}
       >
         <div className="bg-slate-50" style={{ gridColumn: 1, gridRow: 1 }} />
         {days.map((d, i) => (
@@ -54,19 +63,30 @@ export default function TimetableGrid({ data, placements, viewType, entityId }) 
         ))}
 
         {Array.from({ length: periodsPerDay }, (_, p) => (
-          <div key={`label-${p}`} className="flex items-center justify-center bg-slate-50 px-1 text-xs font-medium text-slate-500" style={{ gridColumn: 1, gridRow: rowOf(p) }}>
-            Period {p + 1}
+          <div
+            key={`label-${p}`}
+            className="flex flex-col items-center justify-center bg-slate-50 px-1 text-center text-xs font-medium text-slate-600"
+            style={{ gridColumn: 1, gridRow: rowOf(p) }}
+          >
+            <span>Period {p + 1}</span>
+            {schedule.periods[p] && (
+              <span className="mt-0.5 text-[10px] font-normal tabular-nums text-slate-500">{formatRange(schedule.periods[p].start, schedule.periods[p].end)}</span>
+            )}
           </div>
         ))}
 
-        {hasBreak && (
+        {breakRows.map((b) => (
           <div
-            className="bg-slate-100 py-1 text-center text-[11px] font-medium uppercase tracking-widest text-slate-500"
-            style={{ gridColumn: `1 / span ${days.length + 1}`, gridRow: 2 + breakAfterPeriod }}
+            key={`break-${b.id}`}
+            className="bg-amber-50 py-1 text-center text-[11px] font-medium text-amber-900"
+            style={{ gridColumn: `1 / span ${days.length + 1}`, gridRow: b.row }}
           >
-            Break
+            <span className="uppercase tracking-widest">{b.name || 'Break'}</span>
+            <span className="ml-2 font-normal tabular-nums">
+              {formatRange(b.start, b.end)} · {b.minutes} min
+            </span>
           </div>
-        )}
+        ))}
 
         {/* Empty background cells, so free periods still show grid lines. */}
         {days.map((_, d) =>
